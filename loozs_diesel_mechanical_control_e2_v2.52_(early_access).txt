@@ -22,7 +22,7 @@
 # This chip is designed to work with my startup, clag and control e2s. Which will be inside my Github
 # 
 #
-# This is Version 2.5 (Early access, some bugs may be present)
+# This is Version 2.52 (Early access, some bugs may be present)
 # Created by #Looz45 (discord) and with the help of chatgpt, feel free to contact me if you have any questions.
 # 
 #
@@ -37,8 +37,8 @@
 # (.currenttemps) reads current engine temperature (engine explodes at 200 degrees celcius)
 # (.restart) restarts the engine, youll need to be in gear 1 for this.
 #
-# Think thats about it for now > Youtube tutorial here <https://youtu.be/LE1-zvBwbSA>
-# Github: https://github.com/Looz45/Looz-s-Useful-E2s-for-Gmod-Trainbuild
+# Think thats about it for now > Youtube tutorial here <https://www.youtube.com/watch?v=LE1-zvBwbSA>
+# Github <https://github.com/Looz45/Looz-s-Useful-E2s-for-Gmod-Trainbuild>
 # ----------------- LOCAL SOUNDS -----------------
 local Diesel_Sound = "kei/trains/engines/ee_6kt/idle.wav"
 local Notch1_Sound = "kei/trains/engines/ee_6kt/notch1.wav"
@@ -87,7 +87,7 @@ if(first() | dupefinished()){
     HandBrakeScale = 16 #Strength of the handbrake
     
 
-    ClutchWearSpeed = 1 # How fast your clutch wears out. 1 is a good value
+    ClutchWearSpeed = 4 # How fast your clutch wears out. 1 is a good value
     MaxGear = 6 #How many gears (if you change this you will have to change your gearing)
     Gear = 1 #ignore
     GearBroken = 0 #ignore
@@ -133,6 +133,8 @@ if(first() | dupefinished()){
     Notch7TargetRPM=1900
     Notch8TargetRPM=2300
     
+    LOWGEARSTALL=300 #RPM which the engine will stall at in gears 2-3
+    HIGHGEARSTALL=650 #RPM which the engine will stall at in gears 4-6
 
     Throttle = 0
     TargetRPM = 300 #Keep the same as EngineMin
@@ -737,9 +739,9 @@ if(!ClutchInput & !EngineBroken){
     # Stall logic
     Stalled = 0
     if(Gear == 2 | Gear == 3){
-        if(RPM < 400){ Stalled = 1 }
+        if(RPM < LOWGEARSTALL){ Stalled = 1 }
     } elseif(Gear >= 4 & Gear <= 6){
-        if(RPM < 650){ Stalled = 1 }
+        if(RPM < HIGHGEARSTALL){ Stalled = 1 }
     }
 
     # Gear 1 cannot stall
