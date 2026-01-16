@@ -1,0 +1,1050 @@
+@name Looz's Configurable Steam Locomotive Frame Kit v2.1
+@inputs Base:entity
+@outputs
+@persist
+@trigger
+@model models/sprops/misc/fittings/cubinder_12_to_12.mdl
+
+if (first() | dupefinished()) {}
+
+# ----------------- Configuration -----------------
+Chassis = vec(36)
+FrameMaterial = "models/proppertextures/gritpaint_black"
+Shine = "bobsters_trains/chrome"
+Brakemat = FrameMaterial
+
+BaseAngle=ang(-90,0,0)    
+BaseOffset=vec(0,29,33.5) 
+
+#Axleboxposition
+DriverDiameterSpacing=71 # Driver diameter halved + half of its spacing
+DDAB=DriverDiameterSpacing
+FrameSpacerDistance=35.5 # Driver diameter halved + half of its spacing
+FSD=FrameSpacerDistance
+
+#FrameendPosition
+FrameEnd1=DDAB*1
+FrameEnd2=-DDAB*2
+Endheight=10
+
+#DDAB spacing added to offset. - or + values used to dictate which direction its being moved. * to multiply value.
+AB1offset=0
+AB2offset=-DDAB
+AB3offset=DDAB
+AB4offset=-DDAB*2
+AB5offset=DDAB*2 #hidden by default
+AB6offset=-DDAB*3 #hidden by default
+
+#FSD distance preset.  - or + values used to dictate which direction its being moved. * to multiply value.
+FrameSpacer1=FSD
+FrameSpacer2=-FSD 
+FrameSpacer3=-FSD*3
+FrameSpacer4=FSD*3
+FrameSpacer5=-FSD*5
+
+# Toggles axleboxs on or off. 0 Off, 255 on.
+AB1Alpha=255
+AB2Alpha=255
+AB3Alpha=255
+AB3Alpha=255
+AB4Alpha=255
+AB5Alpha=0 #hidden by default
+AB6Alpha=0 #hidden by default
+
+# Toggles Spacers on or off. 0 Off, 255 on.
+FrameSpacer1Alpha=255
+FrameSpacer2Alpha=255
+FrameSpacer3Alpha=255
+FrameSpacer4Alpha=0
+FrameSpacer5Alpha=0
+
+
+
+# Toggles Ends on or off. 0 Off, 255 on.
+FrameEndAlpha1=255
+FrameEndAlpha2=255
+
+#Frame End Bodygroup
+Framend1B=3
+Framend2B=3
+
+#SpacerType Bodygroup
+Spacertype1=5
+Spacertype2=5
+Spacertype3=5
+Spacertype4=5
+Spacertype5=5
+SpacerHeight=0
+
+# Frame geometry
+SpacerL = 1.0
+FWidth = 1.08
+FLScale = 1.2
+FHScale = 1.2
+Frametype = 3
+
+AxleboxL=FLScale
+AxleboxW=FWidth
+AxleboxH=FHScale
+
+
+############################################# Brake config
+############################################# Brake config
+############################################# Brake config
+BrakeHeight=-3
+
+BrakeOffset1=-35.5
+BrakeOffset2=-35.5
+BrakeOffset3=-35.5
+BrakeOffset4=-35.5
+BrakeOffset5=-35.5
+BrakeOffset6=-35.5
+
+
+Brake1Alpha=255
+Brake2Alpha=255
+Brake3Alpha=255
+Brake4Alpha=255
+Brake5Alpha=0
+Brake6Alpha=0
+
+BrakeAngle=0
+BrakeWidth=29
+#Scales
+Blength=0.8
+Bwidth=1
+Bheight=0.8
+############################################# Brake config
+############################################# Brake config
+############################################# Brake config
+
+
+
+############################################# Spring config
+############################################# Spring config
+############################################# Spring config
+SpringFlip=180
+
+Spring = 3
+
+#Scales
+Slength=FLScale
+Swidth=FWidth
+Sheight=FHScale
+############################################# Spring config
+############################################# Spring config
+############################################# Spring config
+
+# ----------------- Build holos -----------------
+if (first() | dupefinished()) {}
+
+# Initial root axle parent
+A = 1
+holoCreate(A)
+holoParent(A, Base)
+holoAng(A, Base:toWorld(BaseAngle))
+holoPos(A, Base:toWorld(BaseOffset))
+holoAlpha(A, 0)
+Axle = A
+
+# ----------------- Frame holos -----------------
+
+
+
+
+
+# Axlebox holder 1 -----------------------------------------------------------------
+
+A++
+B = holoEntity(Axle)
+holoCreate(A)
+holoParent(A, 1)
+holoAng(A, B:toWorld(ang(0, 90, 90)))
+holoModel(A, "models/zexciv_train_stuff/misc/frames/axlebox_holder.mdl")
+holoEntity(A):setSubMaterial(1, "Magtrains/invisible")
+holoEntity(A):setSubMaterial(2, FrameMaterial)
+holoEntity(A):setSubMaterial(3, Shine)
+holoPos(A, B:toWorld(vec(0,AB1offset,0)))
+holoScale(A, vec(1 * FLScale, 1 * FWidth, 1 * FHScale))
+holoColor(A, Chassis)
+holoBodygroup(A, 1, Frametype)
+holoAlpha(A,AB1Alpha)
+
+# Axlebox
+A++
+B = holoEntity(Axle)
+holoCreate(A)
+holoParent(A, 1)
+holoAng(A, B:toWorld(ang(0, 90, 90)))
+holoModel(A, "models/zexciv_train_stuff/misc/frames/axlebox.mdl")
+holoEntity(A):setSubMaterial(1, "Magtrains/invisible")
+holoEntity(A):setSubMaterial(2, FrameMaterial)
+holoEntity(A):setSubMaterial(3, Shine)
+holoPos(A, B:toWorld(vec(0,AB1offset,0)))
+holoScale(A, vec(1 * AxleboxL, 1 * AxleboxW, 1 * AxleboxH))
+holoColor(A, Chassis)
+holoBodygroup(A, 1, Frametype + 1)
+holoAlpha(A,AB1Alpha)
+
+# Leaf spring
+A++
+B = holoEntity(Axle)
+holoCreate(A)
+holoParent(A, 1)
+holoAng(A, B:toWorld(ang(0, -90, 90+SpringFlip)))
+holoModel(A, "models/zexciv_train_stuff/misc/frames/leaf_spring.mdl")
+holoEntity(A):setSubMaterial(1, "Magtrains/invisible")
+holoEntity(A):setSubMaterial(2, FrameMaterial)
+holoEntity(A):setSubMaterial(3, FrameMaterial)
+holoPos(A, B:toWorld(vec(0, AB1offset, 0)))
+holoScale(A, vec(1 * Slength, 1 * Swidth, 1.0 * Sheight))
+holoColor(A, Chassis)
+holoBodygroup(A, 1, Spring)
+holoAlpha(A,AB1Alpha)
+
+# Axlebox holder 1 -----------------------------------------------------------------
+
+
+
+# Axlebox holder 2 -----------------------------------------------------------------
+
+A++
+B = holoEntity(Axle)
+holoCreate(A)
+holoParent(A, 1)
+holoAng(A, B:toWorld(ang(0, 90, 90)))
+holoModel(A, "models/zexciv_train_stuff/misc/frames/axlebox_holder.mdl")
+holoEntity(A):setSubMaterial(1, "Magtrains/invisible")
+holoEntity(A):setSubMaterial(2, FrameMaterial)
+holoEntity(A):setSubMaterial(3, Shine)
+holoPos(A, B:toWorld(vec(0,AB2offset,0)))
+holoScale(A, vec(1 * FLScale, 1 * FWidth, 1 * FHScale))
+holoColor(A, Chassis)
+holoBodygroup(A, 1, Frametype)
+holoAlpha(A,AB2Alpha)
+
+# Axlebox
+A++
+B = holoEntity(Axle)
+holoCreate(A)
+holoParent(A, 1)
+holoAng(A, B:toWorld(ang(0, 90, 90)))
+holoModel(A, "models/zexciv_train_stuff/misc/frames/axlebox.mdl")
+holoEntity(A):setSubMaterial(1, "Magtrains/invisible")
+holoEntity(A):setSubMaterial(2, FrameMaterial)
+holoEntity(A):setSubMaterial(3, Shine)
+holoPos(A, B:toWorld(vec(0,AB2offset,0)))
+holoScale(A, vec(1 * AxleboxL, 1 * AxleboxW, 1 * AxleboxH))
+holoColor(A, Chassis)
+holoBodygroup(A, 1, Frametype + 1)
+holoAlpha(A,AB2Alpha)
+
+# Leaf spring
+A++
+B = holoEntity(Axle)
+holoCreate(A)
+holoParent(A, 1)
+holoAng(A, B:toWorld(ang(0, -90, 90+SpringFlip)))
+holoModel(A, "models/zexciv_train_stuff/misc/frames/leaf_spring.mdl")
+holoEntity(A):setSubMaterial(1, "Magtrains/invisible")
+holoEntity(A):setSubMaterial(2, FrameMaterial)
+holoEntity(A):setSubMaterial(3, FrameMaterial)
+holoPos(A, B:toWorld(vec(0, AB2offset, 0)))
+holoScale(A, vec(1 * Slength, 1 * Swidth, 1.0 * Sheight))
+holoColor(A, Chassis)
+holoBodygroup(A, 1, Spring)
+holoAlpha(A,AB2Alpha)
+
+# Axlebox holder 2 -----------------------------------------------------------------
+
+
+# Axlebox holder 3 -----------------------------------------------------------------
+
+A++
+B = holoEntity(Axle)
+holoCreate(A)
+holoParent(A, 1)
+holoAng(A, B:toWorld(ang(0, 90, 90)))
+holoModel(A, "models/zexciv_train_stuff/misc/frames/axlebox_holder.mdl")
+holoEntity(A):setSubMaterial(1, "Magtrains/invisible")
+holoEntity(A):setSubMaterial(2, FrameMaterial)
+holoEntity(A):setSubMaterial(3, Shine)
+holoPos(A, B:toWorld(vec(0,AB3offset,0)))
+holoScale(A, vec(1 * FLScale, 1 * FWidth, 1 * FHScale))
+holoColor(A, Chassis)
+holoBodygroup(A, 1, Frametype)
+holoAlpha(A,AB3Alpha)
+
+# Axlebox
+A++
+B = holoEntity(Axle)
+holoCreate(A)
+holoParent(A, 1)
+holoAng(A, B:toWorld(ang(0, 90, 90)))
+holoModel(A, "models/zexciv_train_stuff/misc/frames/axlebox.mdl")
+holoEntity(A):setSubMaterial(1, "Magtrains/invisible")
+holoEntity(A):setSubMaterial(2, FrameMaterial)
+holoEntity(A):setSubMaterial(3, Shine)
+holoPos(A, B:toWorld(vec(0,AB3offset,0)))
+holoScale(A, vec(1 * AxleboxL, 1 * AxleboxW, 1 * AxleboxH))
+holoColor(A, Chassis)
+holoBodygroup(A, 1, Frametype + 1)
+holoAlpha(A,AB3Alpha)
+
+# Leaf spring
+A++
+B = holoEntity(Axle)
+holoCreate(A)
+holoParent(A, 1)
+holoAng(A, B:toWorld(ang(0, -90, 90+SpringFlip)))
+holoModel(A, "models/zexciv_train_stuff/misc/frames/leaf_spring.mdl")
+holoEntity(A):setSubMaterial(1, "Magtrains/invisible")
+holoEntity(A):setSubMaterial(2, FrameMaterial)
+holoEntity(A):setSubMaterial(3, FrameMaterial)
+holoPos(A, B:toWorld(vec(0, AB3offset, 0)))
+holoScale(A, vec(1 * Slength, 1 * Swidth,1.0 * Sheight))
+holoColor(A, Chassis)
+holoBodygroup(A, 1, Spring)
+holoAlpha(A,AB3Alpha)
+
+# Axlebox holder 3 -----------------------------------------------------------------
+
+# Axlebox holder 4 -----------------------------------------------------------------
+
+A++
+B = holoEntity(Axle)
+holoCreate(A)
+holoParent(A, 1)
+holoAng(A, B:toWorld(ang(0, 90, 90)))
+holoModel(A, "models/zexciv_train_stuff/misc/frames/axlebox_holder.mdl")
+holoEntity(A):setSubMaterial(1, "Magtrains/invisible")
+holoEntity(A):setSubMaterial(2, FrameMaterial)
+holoEntity(A):setSubMaterial(3, Shine)
+holoPos(A, B:toWorld(vec(0,AB4offset,0)))
+holoScale(A, vec(1 * FLScale, 1 * FWidth, 1 * FHScale))
+holoColor(A, Chassis)
+holoBodygroup(A, 1, Frametype)
+holoAlpha(A,AB4Alpha)
+
+# Axlebox
+A++
+B = holoEntity(Axle)
+holoCreate(A)
+holoParent(A, 1)
+holoAng(A, B:toWorld(ang(0, 90, 90)))
+holoModel(A, "models/zexciv_train_stuff/misc/frames/axlebox.mdl")
+holoEntity(A):setSubMaterial(1, "Magtrains/invisible")
+holoEntity(A):setSubMaterial(2, FrameMaterial)
+holoEntity(A):setSubMaterial(3, Shine)
+holoPos(A, B:toWorld(vec(0,AB4offset,0)))
+holoScale(A, vec(1 * AxleboxL, 1 * AxleboxW, 1 * AxleboxH))
+holoColor(A, Chassis)
+holoBodygroup(A, 1, Frametype + 1)
+holoAlpha(A,AB4Alpha)
+
+# Leaf spring
+A++
+B = holoEntity(Axle)
+holoCreate(A)
+holoParent(A, 1)
+holoAng(A, B:toWorld(ang(0, -90, 90+SpringFlip)))
+holoModel(A, "models/zexciv_train_stuff/misc/frames/leaf_spring.mdl")
+holoEntity(A):setSubMaterial(1, "Magtrains/invisible")
+holoEntity(A):setSubMaterial(2, FrameMaterial)
+holoEntity(A):setSubMaterial(3, FrameMaterial)
+holoPos(A, B:toWorld(vec(0, AB4offset, 0)))
+holoScale(A, vec(1 * Slength, 1 * Swidth, 1.0 * Sheight))
+holoColor(A, Chassis)
+holoBodygroup(A, 1, Spring)
+holoAlpha(A,AB4Alpha)
+
+# Axlebox holder 4 -----------------------------------------------------------------
+
+
+# Axlebox holder 5 -----------------------------------------------------------------
+
+A++
+B = holoEntity(Axle)
+holoCreate(A)
+holoParent(A, 1)
+holoAng(A, B:toWorld(ang(0, 90, 90)))
+holoModel(A, "models/zexciv_train_stuff/misc/frames/axlebox_holder.mdl")
+holoEntity(A):setSubMaterial(1, "Magtrains/invisible")
+holoEntity(A):setSubMaterial(2, FrameMaterial)
+holoEntity(A):setSubMaterial(3, Shine)
+holoPos(A, B:toWorld(vec(0,AB5offset,0)))
+holoScale(A, vec(1 * FLScale, 1 * FWidth, 1 * FHScale))
+holoColor(A, Chassis)
+holoBodygroup(A, 1, Frametype)
+holoAlpha(A,AB5Alpha)
+
+# Axlebox
+A++
+B = holoEntity(Axle)
+holoCreate(A)
+holoParent(A, 1)
+holoAng(A, B:toWorld(ang(0, 90, 90)))
+holoModel(A, "models/zexciv_train_stuff/misc/frames/axlebox.mdl")
+holoEntity(A):setSubMaterial(1, "Magtrains/invisible")
+holoEntity(A):setSubMaterial(2, FrameMaterial)
+holoEntity(A):setSubMaterial(3, Shine)
+holoPos(A, B:toWorld(vec(0,AB5offset,0)))
+holoScale(A, vec(1 * AxleboxL, 1 * AxleboxW, 1 * AxleboxH))
+holoColor(A, Chassis)
+holoBodygroup(A, 1, Frametype + 1)
+holoAlpha(A,AB5Alpha)
+
+# Leaf spring
+A++
+B = holoEntity(Axle)
+holoCreate(A)
+holoParent(A, 1)
+holoAng(A, B:toWorld(ang(0, -90, 90+SpringFlip)))
+holoModel(A, "models/zexciv_train_stuff/misc/frames/leaf_spring.mdl")
+holoEntity(A):setSubMaterial(1, "Magtrains/invisible")
+holoEntity(A):setSubMaterial(2, FrameMaterial)
+holoEntity(A):setSubMaterial(3, FrameMaterial)
+holoPos(A, B:toWorld(vec(0, AB5offset, 0)))
+holoScale(A, vec(1 * Slength, 1 * Swidth, 1.0 * Sheight))
+holoColor(A, Chassis)
+holoBodygroup(A, 1, Spring)
+holoAlpha(A,AB5Alpha)
+
+# Axlebox holder 5 -----------------------------------------------------------------
+
+
+
+# Axlebox holder 6 -----------------------------------------------------------------
+
+A++
+B = holoEntity(Axle)
+holoCreate(A)
+holoParent(A, 1)
+holoAng(A, B:toWorld(ang(0, 90, 90)))
+holoModel(A, "models/zexciv_train_stuff/misc/frames/axlebox_holder.mdl")
+holoEntity(A):setSubMaterial(1, "Magtrains/invisible")
+holoEntity(A):setSubMaterial(2, FrameMaterial)
+holoEntity(A):setSubMaterial(3, Shine)
+holoPos(A, B:toWorld(vec(0,AB6offset,0)))
+holoScale(A, vec(1 * FLScale, 1 * FWidth, 1 * FHScale))
+holoColor(A, Chassis)
+holoBodygroup(A, 1, Frametype)
+holoAlpha(A,AB6Alpha)
+
+# Axlebox
+A++
+B = holoEntity(Axle)
+holoCreate(A)
+holoParent(A, 1)
+holoAng(A, B:toWorld(ang(0, 90, 90)))
+holoModel(A, "models/zexciv_train_stuff/misc/frames/axlebox.mdl")
+holoEntity(A):setSubMaterial(1, "Magtrains/invisible")
+holoEntity(A):setSubMaterial(2, FrameMaterial)
+holoEntity(A):setSubMaterial(3, Shine)
+holoPos(A, B:toWorld(vec(0,AB6offset,0)))
+holoScale(A, vec(1 * AxleboxL, 1 * AxleboxW, 1 * AxleboxH))
+holoColor(A, Chassis)
+holoBodygroup(A, 1, Frametype + 1)
+holoAlpha(A,AB6Alpha)
+
+# Leaf spring
+A++
+B = holoEntity(Axle)
+holoCreate(A)
+holoParent(A, 1)
+holoAng(A, B:toWorld(ang(0, -90, 90+SpringFlip)))
+holoModel(A, "models/zexciv_train_stuff/misc/frames/leaf_spring.mdl")
+holoEntity(A):setSubMaterial(1, "Magtrains/invisible")
+holoEntity(A):setSubMaterial(2, FrameMaterial)
+holoEntity(A):setSubMaterial(3, FrameMaterial)
+holoPos(A, B:toWorld(vec(0, AB6offset, 0)))
+holoScale(A, vec(1 * Slength, 1 * Swidth, 1.0 * Sheight))
+holoColor(A, Chassis)
+holoBodygroup(A, 1, Spring)
+holoAlpha(A,AB6Alpha)
+
+# Axlebox holder 6 -----------------------------------------------------------------
+
+
+
+######################################################################################################################
+######################################################################################################################
+######################################################################################################################
+######################################################################################################################
+######################################################################################################################
+
+
+
+# Frame Spacer Code  -----------------------------------------------------------------
+
+
+A++
+B = holoEntity(Axle)
+holoCreate(A)
+holoParent(A, 1)
+holoAng(A, B:toWorld(ang(0, -90, -90)))
+holoModel(A, "models/zexciv_train_stuff/misc/frames/frame_connector.mdl")
+holoEntity(A):setSubMaterial(1,"Magtrains/invisible")
+holoEntity(A):setSubMaterial(2,FrameMaterial)
+holoEntity(A):setSubMaterial(3,Shine)
+holoPos(A, B:toWorld(vec(SpacerHeight, FrameSpacer1, 0)))
+holoScale(A, vec(1 * SpacerL, 1 * FWidth, 1.0 * FHScale))
+holoColor(A, Chassis)
+holoBodygroup(A, 1, Spacertype1)
+holoAlpha(A,FrameSpacer1Alpha)
+A++
+B = holoEntity(Axle)
+holoCreate(A)
+holoParent(A, 1)
+holoAng(A, B:toWorld(ang(0, -90, -90)))
+holoModel(A, "models/zexciv_train_stuff/misc/frames/frame_connector.mdl")
+holoEntity(A):setSubMaterial(1,"Magtrains/invisible")
+holoEntity(A):setSubMaterial(2,FrameMaterial)
+holoEntity(A):setSubMaterial(3,Shine)
+holoPos(A, B:toWorld(vec(SpacerHeight, FrameSpacer2, 0)))
+holoScale(A, vec(1 * SpacerL, 1 * FWidth, 1.0 * FHScale))
+holoColor(A, Chassis)
+holoBodygroup(A, 1, Spacertype2)
+holoAlpha(A,FrameSpacer2Alpha)
+
+A++
+B = holoEntity(Axle)
+holoCreate(A)
+holoParent(A, 1)
+holoAng(A, B:toWorld(ang(0, -90, -90)))
+holoModel(A, "models/zexciv_train_stuff/misc/frames/frame_connector.mdl")
+holoEntity(A):setSubMaterial(1,"Magtrains/invisible")
+holoEntity(A):setSubMaterial(2,FrameMaterial)
+holoEntity(A):setSubMaterial(3,Shine)
+holoPos(A, B:toWorld(vec(SpacerHeight, FrameSpacer3, 0)))
+holoScale(A, vec(1 * SpacerL, 1 * FWidth, 1.0 * FHScale))
+holoColor(A, Chassis)
+holoBodygroup(A, 1, Spacertype3)
+holoAlpha(A,FrameSpacer3Alpha)
+A++
+B = holoEntity(Axle)
+holoCreate(A)
+holoParent(A, 1)
+holoAng(A, B:toWorld(ang(0, -90, -90)))
+holoModel(A, "models/zexciv_train_stuff/misc/frames/frame_connector.mdl")
+holoEntity(A):setSubMaterial(1,"Magtrains/invisible")
+holoEntity(A):setSubMaterial(2,FrameMaterial)
+holoEntity(A):setSubMaterial(3,Shine)
+holoPos(A, B:toWorld(vec(SpacerHeight, FrameSpacer4, 0)))
+holoScale(A, vec(1 * SpacerL, 1 * FWidth, 1.0 * FHScale))
+holoColor(A, Chassis)
+holoBodygroup(A, 1, Spacertype4)
+holoAlpha(A,FrameSpacer4Alpha)
+
+
+
+A++
+B = holoEntity(Axle)
+holoCreate(A)
+holoParent(A, 1)
+holoAng(A, B:toWorld(ang(0, -90, -90+0)))
+holoModel(A, "models/zexciv_train_stuff/misc/frames/frame_connector.mdl")
+holoEntity(A):setSubMaterial(1,"Magtrains/invisible")
+holoEntity(A):setSubMaterial(2,FrameMaterial)
+holoEntity(A):setSubMaterial(3,Shine)
+holoPos(A, B:toWorld(vec(SpacerHeight, FrameSpacer5, 0)))
+holoScale(A, vec(1 * SpacerL, 1 * FWidth, 1.0 * FHScale))
+holoColor(A, Chassis)
+holoBodygroup(A, 1, Spacertype5)
+holoAlpha(A,FrameSpacer5Alpha)
+
+
+
+#[
+
+
+###########################################################################################################################################
+#[
+
+
+
+
+
+
+
+
+                Frame End code
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+]###########################################################################################################################################
+
+
+
+A++
+B = holoEntity(Axle)
+holoCreate(A)
+holoParent(A, 1)
+holoAng(A, B:toWorld(ang(0, -90, 90)))
+holoModel(A, "models/zexciv_train_stuff/misc/frames/frame_end_connector.mdl")
+holoEntity(A):setSubMaterial(1,"Magtrains/invisible")
+holoEntity(A):setSubMaterial(2,FrameMaterial)
+holoEntity(A):setSubMaterial(3,Shine)
+holoPos(A, B:toWorld(vec(Endheight, FrameEnd1, 0)))
+holoScale(A, vec(1 * FLScale, 1 * FWidth, 1.0 * FHScale))
+holoColor(A, Chassis)
+holoBodygroup(A, 1, Framend1B)
+holoAlpha(A,FrameEndAlpha1)
+A++
+B = holoEntity(Axle)
+holoCreate(A)
+holoParent(A, 1)
+holoAng(A, B:toWorld(ang(180, -90, 90)))
+holoModel(A, "models/zexciv_train_stuff/misc/frames/frame_end_connector.mdl")
+holoEntity(A):setSubMaterial(1,"Magtrains/invisible")
+holoEntity(A):setSubMaterial(2,FrameMaterial)
+holoEntity(A):setSubMaterial(3,Shine)
+holoPos(A, B:toWorld(vec(Endheight, FrameEnd2, 0)))
+holoScale(A, vec(1 * FLScale, 1 * FWidth, 1.0 * FHScale))
+holoColor(A, Chassis)
+holoBodygroup(A, 1, Framend2B)
+holoAlpha(A,FrameEndAlpha2)
+
+
+
+
+
+###########################################################################################################################################
+#BRAKE RIGGING 1-6
+###########################################################################################################################################
+
+
+####   BB1
+A++
+B = holoEntity(Axle)
+holoCreate(A)
+holoParent(A, 1)
+holoAng(A, B:toWorld(ang(0, -90+BrakeAngle,-90)))
+holoModel(A, "models/ext9k/detail/misc/jnr_driverbrake.mdl")
+holoEntity(A):setSubMaterial(3,"Magtrains/invisible")
+holoEntity(A):setSubMaterial(1,Brakemat)
+holoPos(A, B:toWorld(vec(BrakeHeight, AB1offset+BrakeOffset1, BrakeWidth)))
+holoScale(A, vec(1 * Blength, 1 * Bwidth, 1.0 * Bheight))
+holoColor(A, Chassis)
+holoAlpha(A,Brake1Alpha)
+holoBodygroup(A, 0, 1)
+A++
+B = holoEntity(Axle)
+holoCreate(A)
+holoParent(A, 1)
+holoAng(A, B:toWorld(ang(0, -90+BrakeAngle,-90)))
+holoModel(A, "models/ext9k/detail/misc/jnr_driverbrake.mdl")
+holoEntity(A):setSubMaterial(3,"Magtrains/invisible")
+holoEntity(A):setSubMaterial(1,Brakemat)
+holoPos(A, B:toWorld(vec(BrakeHeight, AB1offset+BrakeOffset1, -BrakeWidth)))
+holoScale(A, vec(1 * Blength, 1 * Bwidth, 1.0 * Bheight))
+holoColor(A, Chassis)
+holoAlpha(A,Brake1Alpha)
+holoBodygroup(A, 0, 0)
+
+A++
+B = holoEntity(Axle)
+holoCreate(A)
+holoParent(A, 1)
+holoAng(A, B:toWorld(ang(0, 0,-0)))
+holoModel(A, "models/sprops/misc/fittings/bend_long_90_3.mdl")
+holoEntity(A):setSubMaterial(3,"Magtrains/invisible")
+holoEntity(A):setSubMaterial(1,Brakemat)
+holoPos(A, B:toWorld(vec(BrakeHeight-2.3, AB1offset+BrakeOffset1, -BrakeWidth+4.5)))
+holoScale(A, vec(1))
+holoColor(A, Chassis)
+holoAlpha(A,Brake1Alpha)
+holoBodygroup(A, 0, 0)
+A++
+B = holoEntity(Axle)
+holoCreate(A)
+holoParent(A, 1)
+holoAng(A, B:toWorld(ang(0, 0,-180)))
+holoModel(A, "models/sprops/misc/fittings/bend_long_90_3.mdl")
+holoEntity(A):setSubMaterial(3,"Magtrains/invisible")
+holoEntity(A):setSubMaterial(1,Brakemat)
+holoPos(A, B:toWorld(vec(BrakeHeight-2.3, AB1offset+BrakeOffset1, BrakeWidth-4.5)))
+holoScale(A, vec(1))
+holoColor(A, Chassis)
+holoAlpha(A,Brake1Alpha)
+holoBodygroup(A, 0, 0)
+A++
+B = holoEntity(Axle)
+holoCreate(A)
+holoParent(A, 1)
+holoAng(A, B:toWorld(ang(0, 0,-180)))
+holoModel(A, "models/sprops/cylinders/size_1/cylinder_1_5x60.mdl")
+holoEntity(A):setSubMaterial(3,"Magtrains/invisible")
+holoEntity(A):setSubMaterial(1,Brakemat)
+holoPos(A, B:toWorld(vec(BrakeHeight-20.7, AB1offset+BrakeOffset1, 0)))
+holoScale(A, vec(1))
+holoColor(A, Chassis)
+holoAlpha(A,Brake1Alpha)
+holoBodygroup(A, 0, 0)
+
+
+
+###### BB2
+
+A++
+B = holoEntity(Axle)
+holoCreate(A)
+holoParent(A, 1)
+holoAng(A, B:toWorld(ang(0, -90+BrakeAngle,-90)))
+holoModel(A, "models/ext9k/detail/misc/jnr_driverbrake.mdl")
+holoEntity(A):setSubMaterial(3,"Magtrains/invisible")
+holoEntity(A):setSubMaterial(1,Brakemat)
+holoPos(A, B:toWorld(vec(BrakeHeight, AB2offset+BrakeOffset2, BrakeWidth)))
+holoScale(A, vec(1 * Blength, 1 * Bwidth, 1.0 * Bheight))
+holoColor(A, Chassis)
+holoAlpha(A,Brake2Alpha)
+holoBodygroup(A, 0, 1)
+A++
+B = holoEntity(Axle)
+holoCreate(A)
+holoParent(A, 1)
+holoAng(A, B:toWorld(ang(0, -90+BrakeAngle,-90)))
+holoModel(A, "models/ext9k/detail/misc/jnr_driverbrake.mdl")
+holoEntity(A):setSubMaterial(3,"Magtrains/invisible")
+holoEntity(A):setSubMaterial(1,Brakemat)
+holoPos(A, B:toWorld(vec(BrakeHeight, AB2offset+BrakeOffset2, -BrakeWidth)))
+holoScale(A, vec(1 * Blength, 1 * Bwidth, 1.0 * Bheight))
+holoColor(A, Chassis)
+holoAlpha(A,Brake2Alpha)
+holoBodygroup(A, 0, 0)
+
+A++
+B = holoEntity(Axle)
+holoCreate(A)
+holoParent(A, 1)
+holoAng(A, B:toWorld(ang(0, 0,-0)))
+holoModel(A, "models/sprops/misc/fittings/bend_long_90_3.mdl")
+holoEntity(A):setSubMaterial(3,"Magtrains/invisible")
+holoEntity(A):setSubMaterial(1,Brakemat)
+holoPos(A, B:toWorld(vec(BrakeHeight-2.3, AB2offset+BrakeOffset2, -BrakeWidth+4.5)))
+holoScale(A, vec(1))
+holoColor(A, Chassis)
+holoAlpha(A,Brake2Alpha)
+holoBodygroup(A, 0, 0)
+A++
+B = holoEntity(Axle)
+holoCreate(A)
+holoParent(A, 1)
+holoAng(A, B:toWorld(ang(0, 0,-180)))
+holoModel(A, "models/sprops/misc/fittings/bend_long_90_3.mdl")
+holoEntity(A):setSubMaterial(3,"Magtrains/invisible")
+holoEntity(A):setSubMaterial(1,Brakemat)
+holoPos(A, B:toWorld(vec(BrakeHeight-2.3, AB2offset+BrakeOffset2, BrakeWidth-4.5)))
+holoScale(A, vec(1))
+holoColor(A, Chassis)
+holoAlpha(A,Brake2Alpha)
+holoBodygroup(A, 0, 0)
+A++
+B = holoEntity(Axle)
+holoCreate(A)
+holoParent(A, 1)
+holoAng(A, B:toWorld(ang(0, 0,-180)))
+holoModel(A, "models/sprops/cylinders/size_1/cylinder_1_5x60.mdl")
+holoEntity(A):setSubMaterial(3,"Magtrains/invisible")
+holoEntity(A):setSubMaterial(1,Brakemat)
+holoPos(A, B:toWorld(vec(BrakeHeight-20.7, AB2offset+BrakeOffset2, 0)))
+holoScale(A, vec(1))
+holoColor(A, Chassis)
+holoAlpha(A,Brake2Alpha)
+holoBodygroup(A, 0, 0)
+
+###### BB3
+
+
+A++
+B = holoEntity(Axle)
+holoCreate(A)
+holoParent(A, 1)
+holoAng(A, B:toWorld(ang(0, -90+BrakeAngle,-90)))
+holoModel(A, "models/ext9k/detail/misc/jnr_driverbrake.mdl")
+holoEntity(A):setSubMaterial(3,"Magtrains/invisible")
+holoEntity(A):setSubMaterial(1,Brakemat)
+holoPos(A, B:toWorld(vec(BrakeHeight, AB3offset+BrakeOffset3, BrakeWidth)))
+holoScale(A, vec(1 * Blength, 1 * Bwidth, 1.0 * Bheight))
+holoColor(A, Chassis)
+holoAlpha(A,Brake3Alpha)
+holoBodygroup(A, 0, 1)
+A++
+B = holoEntity(Axle)
+holoCreate(A)
+holoParent(A, 1)
+holoAng(A, B:toWorld(ang(0, -90+BrakeAngle,-90)))
+holoModel(A, "models/ext9k/detail/misc/jnr_driverbrake.mdl")
+holoEntity(A):setSubMaterial(3,"Magtrains/invisible")
+holoEntity(A):setSubMaterial(1,Brakemat)
+holoPos(A, B:toWorld(vec(BrakeHeight, AB3offset+BrakeOffset3, -BrakeWidth)))
+holoScale(A, vec(1 * Blength, 1 * Bwidth, 1.0 * Bheight))
+holoColor(A, Chassis)
+holoAlpha(A,Brake3Alpha)
+holoBodygroup(A, 0, 0)
+
+A++
+B = holoEntity(Axle)
+holoCreate(A)
+holoParent(A, 1)
+holoAng(A, B:toWorld(ang(0, 0,-0)))
+holoModel(A, "models/sprops/misc/fittings/bend_long_90_3.mdl")
+holoEntity(A):setSubMaterial(3,"Magtrains/invisible")
+holoEntity(A):setSubMaterial(1,Brakemat)
+holoPos(A, B:toWorld(vec(BrakeHeight-2.3, AB3offset+BrakeOffset3, -BrakeWidth+4.5)))
+holoScale(A, vec(1))
+holoColor(A, Chassis)
+holoAlpha(A,Brake3Alpha)
+holoBodygroup(A, 0, 0)
+A++
+B = holoEntity(Axle)
+holoCreate(A)
+holoParent(A, 1)
+holoAng(A, B:toWorld(ang(0, 0,-180)))
+holoModel(A, "models/sprops/misc/fittings/bend_long_90_3.mdl")
+holoEntity(A):setSubMaterial(3,"Magtrains/invisible")
+holoEntity(A):setSubMaterial(1,Brakemat)
+holoPos(A, B:toWorld(vec(BrakeHeight-2.3, AB3offset+BrakeOffset3, BrakeWidth-4.5)))
+holoScale(A, vec(1))
+holoColor(A, Chassis)
+holoAlpha(A,Brake3Alpha)
+holoBodygroup(A, 0, 0)
+A++
+B = holoEntity(Axle)
+holoCreate(A)
+holoParent(A, 1)
+holoAng(A, B:toWorld(ang(0, 0,-180)))
+holoModel(A, "models/sprops/cylinders/size_1/cylinder_1_5x60.mdl")
+holoEntity(A):setSubMaterial(3,"Magtrains/invisible")
+holoEntity(A):setSubMaterial(1,Brakemat)
+holoPos(A, B:toWorld(vec(BrakeHeight-20.7, AB3offset+BrakeOffset3, 0)))
+holoScale(A, vec(1))
+holoColor(A, Chassis)
+holoAlpha(A,Brake3Alpha)
+holoBodygroup(A, 0, 0)
+
+###### BB4
+
+
+A++
+B = holoEntity(Axle)
+holoCreate(A)
+holoParent(A, 1)
+holoAng(A, B:toWorld(ang(0, -90+BrakeAngle,-90)))
+holoModel(A, "models/ext9k/detail/misc/jnr_driverbrake.mdl")
+holoEntity(A):setSubMaterial(3,"Magtrains/invisible")
+holoEntity(A):setSubMaterial(1,Brakemat)
+holoPos(A, B:toWorld(vec(BrakeHeight, AB4offset+BrakeOffset4, BrakeWidth)))
+holoScale(A, vec(1 * Blength, 1 * Bwidth, 1.0 * Bheight))
+holoColor(A, Chassis)
+holoAlpha(A,Brake4Alpha)
+holoBodygroup(A, 0, 1)
+A++
+B = holoEntity(Axle)
+holoCreate(A)
+holoParent(A, 1)
+holoAng(A, B:toWorld(ang(0, -90+BrakeAngle,-90)))
+holoModel(A, "models/ext9k/detail/misc/jnr_driverbrake.mdl")
+holoEntity(A):setSubMaterial(3,"Magtrains/invisible")
+holoEntity(A):setSubMaterial(1,Brakemat)
+holoPos(A, B:toWorld(vec(BrakeHeight, AB4offset+BrakeOffset4, -BrakeWidth)))
+holoScale(A, vec(1 * Blength, 1 * Bwidth, 1.0 * Bheight))
+holoColor(A, Chassis)
+holoAlpha(A,Brake4Alpha)
+holoBodygroup(A, 0, 0)
+
+A++
+B = holoEntity(Axle)
+holoCreate(A)
+holoParent(A, 1)
+holoAng(A, B:toWorld(ang(0, 0,-0)))
+holoModel(A, "models/sprops/misc/fittings/bend_long_90_3.mdl")
+holoEntity(A):setSubMaterial(3,"Magtrains/invisible")
+holoEntity(A):setSubMaterial(1,Brakemat)
+holoPos(A, B:toWorld(vec(BrakeHeight-2.3, AB4offset+BrakeOffset4, -BrakeWidth+4.5)))
+holoScale(A, vec(1))
+holoColor(A, Chassis)
+holoAlpha(A,Brake4Alpha)
+holoBodygroup(A, 0, 0)
+A++
+B = holoEntity(Axle)
+holoCreate(A)
+holoParent(A, 1)
+holoAng(A, B:toWorld(ang(0, 0,-180)))
+holoModel(A, "models/sprops/misc/fittings/bend_long_90_3.mdl")
+holoEntity(A):setSubMaterial(3,"Magtrains/invisible")
+holoEntity(A):setSubMaterial(1,Brakemat)
+holoPos(A, B:toWorld(vec(BrakeHeight-2.3, AB4offset+BrakeOffset4, BrakeWidth-4.5)))
+holoScale(A, vec(1))
+holoColor(A, Chassis)
+holoAlpha(A,Brake4Alpha)
+holoBodygroup(A, 0, 0)
+A++
+B = holoEntity(Axle)
+holoCreate(A)
+holoParent(A, 1)
+holoAng(A, B:toWorld(ang(0, 0,-180)))
+holoModel(A, "models/sprops/cylinders/size_1/cylinder_1_5x60.mdl")
+holoEntity(A):setSubMaterial(3,"Magtrains/invisible")
+holoEntity(A):setSubMaterial(1,Brakemat)
+holoPos(A, B:toWorld(vec(BrakeHeight-20.7, AB4offset+BrakeOffset4, 0)))
+holoScale(A, vec(1))
+holoColor(A, Chassis)
+holoAlpha(A,Brake4Alpha)
+holoBodygroup(A, 0, 0)
+
+###### BB5
+
+A++
+B = holoEntity(Axle)
+holoCreate(A)
+holoParent(A, 1)
+holoAng(A, B:toWorld(ang(0, -90+BrakeAngle,-90)))
+holoModel(A, "models/ext9k/detail/misc/jnr_driverbrake.mdl")
+holoEntity(A):setSubMaterial(3,"Magtrains/invisible")
+holoEntity(A):setSubMaterial(1,Brakemat)
+holoPos(A, B:toWorld(vec(BrakeHeight, AB5offset+BrakeOffset5, BrakeWidth)))
+holoScale(A, vec(1 * Blength, 1 * Bwidth, 1.0 * Bheight))
+holoColor(A, Chassis)
+holoAlpha(A,Brake5Alpha)
+holoBodygroup(A, 0, 1)
+A++
+B = holoEntity(Axle)
+holoCreate(A)
+holoParent(A, 1)
+holoAng(A, B:toWorld(ang(0, -90+BrakeAngle,-90)))
+holoModel(A, "models/ext9k/detail/misc/jnr_driverbrake.mdl")
+holoEntity(A):setSubMaterial(3,"Magtrains/invisible")
+holoEntity(A):setSubMaterial(1,Brakemat)
+holoPos(A, B:toWorld(vec(BrakeHeight, AB5offset+BrakeOffset5, -BrakeWidth)))
+holoScale(A, vec(1 * Blength, 1 * Bwidth, 1.0 * Bheight))
+holoColor(A, Chassis)
+holoAlpha(A,Brake5Alpha)
+holoBodygroup(A, 0, 0)
+
+A++
+B = holoEntity(Axle)
+holoCreate(A)
+holoParent(A, 1)
+holoAng(A, B:toWorld(ang(0, 0,-0)))
+holoModel(A, "models/sprops/misc/fittings/bend_long_90_3.mdl")
+holoEntity(A):setSubMaterial(3,"Magtrains/invisible")
+holoEntity(A):setSubMaterial(1,Brakemat)
+holoPos(A, B:toWorld(vec(BrakeHeight-2.3, AB5offset+BrakeOffset5, -BrakeWidth+4.5)))
+holoScale(A, vec(1))
+holoColor(A, Chassis)
+holoAlpha(A,Brake5Alpha)
+holoBodygroup(A, 0, 0)
+A++
+B = holoEntity(Axle)
+holoCreate(A)
+holoParent(A, 1)
+holoAng(A, B:toWorld(ang(0, 0,-180)))
+holoModel(A, "models/sprops/misc/fittings/bend_long_90_3.mdl")
+holoEntity(A):setSubMaterial(3,"Magtrains/invisible")
+holoEntity(A):setSubMaterial(1,Brakemat)
+holoPos(A, B:toWorld(vec(BrakeHeight-2.3, AB5offset+BrakeOffset5, BrakeWidth-4.5)))
+holoScale(A, vec(1))
+holoColor(A, Chassis)
+holoAlpha(A,Brake5Alpha)
+holoBodygroup(A, 0, 0)
+A++
+B = holoEntity(Axle)
+holoCreate(A)
+holoParent(A, 1)
+holoAng(A, B:toWorld(ang(0, 0,-180)))
+holoModel(A, "models/sprops/cylinders/size_1/cylinder_1_5x60.mdl")
+holoEntity(A):setSubMaterial(3,"Magtrains/invisible")
+holoEntity(A):setSubMaterial(1,Brakemat)
+holoPos(A, B:toWorld(vec(BrakeHeight-20.7, AB5offset+BrakeOffset5, 0)))
+holoScale(A, vec(1))
+holoColor(A, Chassis)
+holoAlpha(A,Brake5Alpha)
+holoBodygroup(A, 0, 0)
+
+######   BB6
+
+
+A++
+B = holoEntity(Axle)
+holoCreate(A)
+holoParent(A, 1)
+holoAng(A, B:toWorld(ang(0, -90+BrakeAngle,-90)))
+holoModel(A, "models/ext9k/detail/misc/jnr_driverbrake.mdl")
+holoEntity(A):setSubMaterial(3,"Magtrains/invisible")
+holoEntity(A):setSubMaterial(1,Brakemat)
+holoPos(A, B:toWorld(vec(BrakeHeight, AB6offset+BrakeOffset6, BrakeWidth)))
+holoScale(A, vec(1 * Blength, 1 * Bwidth, 1.0 * Bheight))
+holoColor(A, Chassis)
+holoAlpha(A,Brake6Alpha)
+holoBodygroup(A, 0, 1)
+A++
+B = holoEntity(Axle)
+holoCreate(A)
+holoParent(A, 1)
+holoAng(A, B:toWorld(ang(0, -90+BrakeAngle,-90)))
+holoModel(A, "models/ext9k/detail/misc/jnr_driverbrake.mdl")
+holoEntity(A):setSubMaterial(3,"Magtrains/invisible")
+holoEntity(A):setSubMaterial(1,Brakemat)
+holoPos(A, B:toWorld(vec(BrakeHeight, AB6offset+BrakeOffset6, -BrakeWidth)))
+holoScale(A, vec(1 * Blength, 1 * Bwidth, 1.0 * Bheight))
+holoColor(A, Chassis)
+holoAlpha(A,Brake6Alpha)
+holoBodygroup(A, 0, 0)
+
+A++
+B = holoEntity(Axle)
+holoCreate(A)
+holoParent(A, 1)
+holoAng(A, B:toWorld(ang(0, 0,-0)))
+holoModel(A, "models/sprops/misc/fittings/bend_long_90_3.mdl")
+holoEntity(A):setSubMaterial(3,"Magtrains/invisible")
+holoEntity(A):setSubMaterial(1,Brakemat)
+holoPos(A, B:toWorld(vec(BrakeHeight-2.3, AB6offset+BrakeOffset6, -BrakeWidth+4.5)))
+holoScale(A, vec(1))
+holoColor(A, Chassis)
+holoAlpha(A,Brake6Alpha)
+holoBodygroup(A, 0, 0)
+A++
+B = holoEntity(Axle)
+holoCreate(A)
+holoParent(A, 1)
+holoAng(A, B:toWorld(ang(0, 0,-180)))
+holoModel(A, "models/sprops/misc/fittings/bend_long_90_3.mdl")
+holoEntity(A):setSubMaterial(3,"Magtrains/invisible")
+holoEntity(A):setSubMaterial(1,Brakemat)
+holoPos(A, B:toWorld(vec(BrakeHeight-2.3, AB6offset+BrakeOffset6, BrakeWidth-4.5)))
+holoScale(A, vec(1))
+holoColor(A, Chassis)
+holoAlpha(A,Brake6Alpha)
+holoBodygroup(A, 0, 0)
+A++
+B = holoEntity(Axle)
+holoCreate(A)
+holoParent(A, 1)
+holoAng(A, B:toWorld(ang(0, 0,-180)))
+holoModel(A, "models/sprops/cylinders/size_1/cylinder_1_5x60.mdl")
+holoEntity(A):setSubMaterial(3,"Magtrains/invisible")
+holoEntity(A):setSubMaterial(1,Brakemat)
+holoPos(A, B:toWorld(vec(BrakeHeight-20.7, AB6offset+BrakeOffset6, 0)))
+holoScale(A, vec(1))
+holoColor(A, Chassis)
+holoAlpha(A,Brake6Alpha)
+holoBodygroup(A, 0, 0)
+
+
+
+reset()
