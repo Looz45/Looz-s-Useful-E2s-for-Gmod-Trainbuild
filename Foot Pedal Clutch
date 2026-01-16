@@ -1,0 +1,56 @@
+@name Foot Pedal Clutch
+@inputs Clutch
+@outputs
+@persist Base Pedal Pivot
+@model models/sprops/cuboids/height06/size_2/cube_12x18x6.mdl
+
+if(first() | dupefinished()) {
+
+    entity():setAlpha(0)
+    Width=1
+    Scale=0.8
+    # --- Base ---
+    Base = 1
+    holoCreate(Base)
+    holoModel(Base, "models/sprops/cuboids/height06/size_2/cube_12x18x6.mdl")
+    holoScale(Base, vec(1*Scale,1*Width*Scale,1*Scale))
+    holoColor(Base, vec(255))
+    holoPos(Base, entity():toWorld(vec(0)))
+    holoAng(Base, entity():toWorld(ang(0,0,0)))
+    holoParent(Base, entity())
+    holoEntity(Base):setSubMaterial(1, "models/proppertextures/acrylic_darkgrey")
+    
+    # --- Pivot (hinge point) ---
+    Pivot = 2
+    holoCreate(Pivot)
+    holoModel(Pivot, "models/sprops/cylinders/size_2/cylinder_3x12.mdl")
+    holoScale(Pivot, vec(0.5*Scale,0.5*Scale,0.9*Width*Scale))
+    holoColor(Pivot, vec(130))
+    holoPos(Pivot, entity():toWorld(vec(7.6*Scale,0,3.0*Scale)))  # Pivots origin
+    holoAng(Pivot, entity():toWorld(ang(0,0,90)))    # initial angle
+    holoParent(Pivot, entity())
+    holoEntity(Pivot):setSubMaterial(1, "models/proppertextures/acrylic2_hw") 
+    
+    # --- Pedal ---
+    Pedal = 3
+    holoCreate(Pedal)
+    holoModel(Pedal, "models/sprops/rectangles_thin/size_2/rect_12x18x1_5.mdl")
+    holoScale(Pedal, vec(0.88*Scale,0.88*Width*Scale,0.88*Scale))
+    holoColor(Pedal, vec(130))
+    holoEntity(Pedal):setSubMaterial(1, "models/proppertextures/tread_diamond") 
+    
+    # Put pedal back to its original position and angle
+    holoPos(Pedal, entity():toWorld(vec(0,0,5*Scale)))  # Original position
+    holoAng(Pedal, entity():toWorld(ang(15,0,0))) # Original angle
+    
+    holoParent(Pedal, Pivot)  # Pedal now moves/rotates with pivot
+}
+
+# --- Pedal press ---
+if(Clutch == 1) {
+    # Rotate pivot to press pedal
+    holoAng(Pivot, ang(-10,0,90))
+} else {
+    # Pivot back to released
+    holoAng(Pivot, ang(5,0,90))
+}
