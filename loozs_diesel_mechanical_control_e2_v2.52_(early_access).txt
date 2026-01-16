@@ -1,4 +1,4 @@
-@name Loozs Diesel Mechanical Control E2 V2.51 (Early Access)
+@name Loozs Diesel Mechanical Control E2 V2.53 (Early Access)
 @inputs Active W S A D Space ClutchInput TrainBrake IndepBrake HandBrake Throttle_OVR Repair EnginePitchInput
 @outputs MPH KPH V Throttle NegativeThrottle OPS Gear RPM Clutch GearboxBroken EngineBroken EngineTemp
 @persist MaxSpeed Mul BrakeScale HandBrakeScale EnginePitch
@@ -10,7 +10,7 @@
 @persist ChatIndepBrake ChatTrainBrake ChatHandBrake
 @persist ClutchHoldTimer ClutchDamageCounter ClutchBroken CanShift
 @persist ClutchWear ClutchBroken ClutchWearTimer
-@persist PrevGear PrevEngineStalled
+@persist PrevGear PrevEngineStalled HIGHGEARSTALL LOWGEARSTALL
 @persist Notch1TargetRPM Notch2TargetRPM Notch3TargetRPM Notch4TargetRPM Notch5TargetRPM Notch6TargetRPM Notch7TargetRPM Notch8TargetRPM
 @trigger
 @model models/beer/wiremod/watersensor.mdl
