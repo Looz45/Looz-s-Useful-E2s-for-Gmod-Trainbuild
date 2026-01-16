@@ -37,7 +37,7 @@
 # (.currenttemps) reads current engine temperature (engine explodes at 200 degrees celcius)
 # (.restart) restarts the engine, youll need to be in gear 1 for this.
 #
-# Think thats about it for now > Youtube tutorial here <url>
+# Think thats about it for now > Youtube tutorial here <https://youtu.be/LE1-zvBwbSA>
 # ----------------- LOCAL SOUNDS -----------------
 local Diesel_Sound = "kei/trains/engines/ee_6kt/idle.wav"
 local Notch1_Sound = "kei/trains/engines/ee_6kt/notch1.wav"
