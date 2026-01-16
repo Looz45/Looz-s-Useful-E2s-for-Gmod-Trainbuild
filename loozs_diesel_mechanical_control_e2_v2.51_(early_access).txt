@@ -38,6 +38,7 @@
 # (.restart) restarts the engine, youll need to be in gear 1 for this.
 #
 # Think thats about it for now > Youtube tutorial here <https://youtu.be/LE1-zvBwbSA>
+# Github: https://github.com/Looz45/Looz-s-Useful-E2s-for-Gmod-Trainbuild
 # ----------------- LOCAL SOUNDS -----------------
 local Diesel_Sound = "kei/trains/engines/ee_6kt/idle.wav"
 local Notch1_Sound = "kei/trains/engines/ee_6kt/notch1.wav"
