@@ -1,0 +1,790 @@
+@name Loozs Diesel Mechanical Control E2 V2.51 (Early Access)
+@inputs Active W S A D Space ClutchInput TrainBrake IndepBrake HandBrake Throttle_OVR Repair EnginePitchInput
+@outputs MPH KPH V Throttle NegativeThrottle OPS Gear RPM Clutch GearboxBroken EngineBroken EngineTemp
+@persist MaxSpeed Mul BrakeScale HandBrakeScale EnginePitch
+@persist [E O Weld]:entity
+@persist EngineMin EngineMax Mode CurrentNotch TargetRPM
+@persist MaxGear Gear GearMul:table GearSpd:table PrevA PrevD PrevClutch PrevTB PrevIB PrevHB PrevClutchState
+@persist GearDamageCounter GearBroken PrevThrottle PrintedTB PrintedIB PrintedHB
+@persist GearboxFirePlaying EngineBroken EngineRedlineTimer EngineTempVal NextTempWarning
+@persist ChatIndepBrake ChatTrainBrake ChatHandBrake
+@persist ClutchHoldTimer ClutchDamageCounter ClutchBroken CanShift
+@persist ClutchWear ClutchBroken ClutchWearTimer
+@persist PrevGear PrevEngineStalled
+@persist Notch1TargetRPM Notch2TargetRPM Notch3TargetRPM Notch4TargetRPM Notch5TargetRPM Notch6TargetRPM Notch7TargetRPM Notch8TargetRPM
+@trigger
+@model models/beer/wiremod/watersensor.mdl
+#
+# Hello this chip was made to be a close representation of the 060 diesel shunter in derail valley. This chip has working gears, damage throttle and rpm.
+# There is also a repair feature for those that are still learning the chip, its not overly complex but its more advanced than standard olc.
+# Damage features include > Harsh downshifting, Gear crunches, Gearbox Failure, Engine overheating, Engine failure, Clutch wear, Clutch failure.
+# Other features include Stalling, so RPMs matter in certain gears. Note Gear 1 you cannot stall in.
+# This chip is designed to work with my startup, clag and control e2s. Which will be inside my Github
+# 
+#
+# This is Version 2.5 (Early access, some bugs may be present)
+# Created by #Looz45 (discord) and with the help of chatgpt, feel free to contact me if you have any questions.
+# 
+#
+# Known issues; 
+# When repairing the clutch and restarting the engine it will still say the clutch is broken when it isn't.
+# When braking with chat commands it will say the brake is released when it isnt. 
+#
+#
+# CHAT COMMANDS: (.throttle [-10 - + 10]) e.g .throttle 5 or .throttle -5. (.gear 1-6) (.brake 1[1 = indepentant, 2 = trainbrake, 3=handbrake] 1-0 = on or off) E.g .brake 1 1 = indepenant brake on >
+# > .brake 1 0 = indepentant brake off, .brake 2 1 = trainbrake on and so forth.
+# (.repair) repairs all damage
+# (.currenttemps) reads current engine temperature (engine explodes at 200 degrees celcius)
+# (.restart) restarts the engine, youll need to be in gear 1 for this.
+#
+# Think thats about it for now > Youtube tutorial here <url>
+# ----------------- LOCAL SOUNDS -----------------
+local Diesel_Sound = "kei/trains/engines/ee_6kt/idle.wav"
+local Notch1_Sound = "kei/trains/engines/ee_6kt/notch1.wav"
+local Notch2_Sound = "kei/trains/engines/ee_6kt/notch2.wav"
+local Notch3_Sound = "kei/trains/engines/ee_6kt/notch3.wav"
+local Notch4_Sound = "kei/trains/engines/ee_6kt/notch4.wav"
+local Notch5_Sound = "kei/trains/engines/ee_6kt/notch5.wav"
+local Notch6_Sound = "kei/trains/engines/ee_6kt/notch6.wav"
+local Notch7_Sound = "kei/trains/engines/ee_6kt/notch7.wav"
+local Notch8_Sound = "kei/trains/engines/ee_6kt/notch8.wav"
+local EngineStall_Sound = "kei/trains/engines/ee_6kt/shutdown.wav" # Shutdown sound of your engine
+
+# Ignore
+local Notch1_Rev_Sound = Notch1_Sound
+local Notch2_Rev_Sound = Notch2_Sound
+local Notch3_Rev_Sound = Notch3_Sound
+local Notch4_Rev_Sound = Notch4_Sound
+local Notch5_Rev_Sound = Notch5_Sound
+local Notch6_Rev_Sound = Notch6_Sound
+local Notch7_Rev_Sound = Notch7_Sound
+local Notch8_Rev_Sound = Notch8_Sound
+# Ignore
+
+local GearUp_Sound = "lazpack/misc/cab/alco_composite_reverser_fr.wav"
+local GearCrunch_Sound = "physics/metal/metal_box_impact_bullet1.wav"
+local GearBreak_Sound = "monkssounds/damage/catastrophic/catastrophic6.wav"
+local Clutch_Sound = "physics/metal/metal_box_strain2.wav"
+
+local TrainBrake_Sound = "gsgtrainsounds/wheels/brake_3.wav"
+local IndepBrake_Sound = "gsgtrainsounds/wheels/brake_composite_7.wav"
+local HandBrake_Sound = "gsgtrainsounds/misc/airbrake3.wav"
+
+local GearboxFire_Sound = "ambient/fire/fire_med_loop1.wav"
+local EngineBreak_Sound = "ambient/explosions/explode_2.wav"
+local EngineFire_Sound = "ambient/fire/fire_big_loop1.wav"
+local Repair_Sound = "chrispsssssssspack/r/hurrah.wav"
+
+# ----------------- INIT -----------------
+if(first() | dupefinished()){
+    Mode = 0 #ignore
+    
+# ----------------- CONFIG -----------------
+    EnginePitch = 0
+    
+    BrakeScale = 30.0 #Controls how strong the independant and train brake are.
+    HandBrakeScale = 16 #Strength of the handbrake
+    
+
+    ClutchWearSpeed = 1 # How fast your clutch wears out. 1 is a good value
+    MaxGear = 6 #How many gears (if you change this you will have to change your gearing)
+    Gear = 1 #ignore
+    GearBroken = 0 #ignore
+    GearDamageCounter = 0 #ignore
+    
+  
+# ----------------- GEARING -----------------  
+    
+
+    GearMul[1,number] = 800
+    GearSpd[1,number] = 100
+    
+    GearMul[2,number] = 525
+    GearSpd[2,number] = 180
+    
+    GearMul[3,number] = 300
+    GearSpd[3,number] = 340
+    
+    GearMul[4,number] = 200
+    GearSpd[4,number] = 475
+    
+    GearMul[5,number] = 170
+    GearSpd[5,number] = 870
+    
+    GearMul[6,number] = 150
+    GearSpd[6,number] = 1600
+
+    Mul = GearMul[Gear,number]
+    MaxSpeed = GearSpd[Gear,number]
+
+# ----------------- GEARING -----------------  
+
+# ----------------- RPM MIN TO MAX -----------------  
+    EngineMin = 300
+    EngineMax = 2300
+
+    Notch1TargetRPM=400
+    Notch2TargetRPM=500
+    Notch3TargetRPM=700
+    Notch4TargetRPM=900
+    Notch5TargetRPM=1100
+    Notch6TargetRPM=1500
+    Notch7TargetRPM=1900
+    Notch8TargetRPM=2300
+    
+
+    Throttle = 0
+    TargetRPM = 300 #Keep the same as EngineMin
+    RPM = 300 #Keep the same as EngineMin
+    CurrentNotch = -1 #Ingnore
+
+    PrevA = 0
+    PrevD = 0
+    PrevClutch = 0
+    PrevTB = 0
+    PrevIB = 0
+    PrevHB = 0
+    PrevClutchState = 0
+    PrevThrottle = 0
+    PrintedTB = 0
+    PrintedIB = 0
+    PrintedHB = 0
+
+    EngineBroken = 0
+    EngineRedlineTimer = 0
+    GearboxFirePlaying = 0
+    EngineTempVal = 20
+    NextTempWarning = 100
+    
+    ChatTrainBrake = 0
+    ChatIndepBrake = 0
+    ChatHandBrake = 0
+
+    CanShift = 1
+    PrevGear = Gear
+
+    ClutchHoldTimer = 0
+    ClutchDamageCounter = 0
+    ClutchBroken = 0
+
+    ClutchWear = 0
+    ClutchBroken = 0
+    ClutchWearTimer = 0
+   
+    E = entity()
+    O = owner()
+    runOnChat(1)
+}
+
+interval(20)
+
+
+
+#############################################################################################
+#############################################################################################
+#############################################################################################
+#############################################################################################
+#############################################################################################
+###############     you shouldnt need to touch anything in here    ##########################
+#############################################################################################
+#############################################################################################
+#############################################################################################
+#############################################################################################
+
+
+
+
+
+# ----------------- CHAT CONTROL -----------------
+if(chatClk(O) & !->Throttle_OVR){
+    Sentence = O:lastSaid():explode(" ")
+    CMD = Sentence[1,string]
+
+    # ---- REPAIR ----
+    if(CMD == ".repair"){
+        # Apply repair immediately
+        GearBroken = 0
+        GearDamageCounter = 0
+        EngineBroken = 0
+        EngineRedlineTimer = 0
+        EngineTempVal = 20
+        NextTempWarning = 100
+        
+        
+ClutchBroken = 0
+ClutchDamageCounter = 0
+ClutchHoldTimer = 0
+soundStop(4) # stop clutch wear/break sound
+
+        # Stop fire / damage sounds
+        soundStop(2) # Gearbox fire
+        soundStop(5) # Engine fire
+
+        GearboxFirePlaying = 0
+
+        hideChat(1)
+        print("Chat: Locomotive Repaired")
+    }
+
+    # ---- THROTTLE ----
+    elseif(CMD == ".throttle"){
+        Throttle = clamp(Sentence[2,string]:toNumber(), -10, 10)
+        NegativeThrottle = -Throttle
+        hideChat(1)
+        print("Chat: Setting Throttle to "+Throttle:toString())
+    }
+
+    # ---- GEAR ----
+    elseif(CMD == ".gear"){
+        Gear = clamp(Sentence[2,string]:toNumber(), 1, MaxGear)
+        Mul = GearMul[Gear,number]
+        MaxSpeed = GearSpd[Gear,number]
+        hideChat(1)
+        print("Chat: Gear set to "+Gear:toString())
+    }
+# ---- BRAKES (chat commands) ----
+elseif(CMD == ".brake"){
+    # Get brake type (1=Indep, 2=Train, 3=Hand)
+    BrakeType = Sentence[2,string]:toNumber()
+    # Get state argument: 1=on, 0=off, -1=toggle if no argument
+    BrakeState = Sentence[3,string] ? Sentence[3,string]:toNumber() : -1
+
+    if(BrakeType == 1){ # Indep Brake
+        if(BrakeState == -1){ ChatIndepBrake = 1 - ChatIndepBrake } else { ChatIndepBrake = clamp(BrakeState,0,1) }
+        if(ChatIndepBrake == 1 & !PrintedIB){ print("Chat: Indep Brake ON") PrintedIB = 1 }
+        if(ChatIndepBrake == 0 & PrintedIB){ print("Chat: Indep Brake OFF") PrintedIB = 0 }
+    }
+
+    if(BrakeType == 2){ # Train Brake
+        if(BrakeState == -1){ ChatTrainBrake = 1 - ChatTrainBrake } else { ChatTrainBrake = clamp(BrakeState,0,1) }
+        if(ChatTrainBrake == 1 & !PrintedTB){ print("Chat: Train Brake ON") PrintedTB = 1 }
+        if(ChatTrainBrake == 0 & PrintedTB){ print("Chat: Train Brake OFF") PrintedTB = 0 }
+    }
+
+    if(BrakeType == 3){ # Hand Brake
+        if(BrakeState == -1){ ChatHandBrake = 1 - ChatHandBrake } else { ChatHandBrake = clamp(BrakeState,0,1) }
+        if(ChatHandBrake == 1 & !PrintedHB){ print("Chat: Handbrake ON") PrintedHB = 1 }
+        if(ChatHandBrake == 0 & PrintedHB){ print("Chat: Handbrake OFF") PrintedHB = 0 }
+    }
+
+    hideChat(1)
+}
+
+
+
+
+
+
+
+    # ---- RESTART ----
+    elseif(CMD == ".restart"){
+        hideChat(1)
+        if(EngineBroken){
+            EngineBroken = 0
+            EngineRedlineTimer = 0
+            EngineTempVal = 20
+            Mul = GearMul[Gear,number]
+            MaxSpeed = GearSpd[Gear,number]
+            soundStop(5)
+            soundStop(4)
+            print("Chat: Engine restarted")
+        } else {
+            print("Chat: Engine running, no restart needed")
+        }
+    }
+
+    # ---- CURRENT TEMPERATURE ----
+    elseif(CMD == ".currenttemps"){
+        hideChat(1)
+        print("Chat: Engine Temperature = "+EngineTempVal:toString()+"C")
+    }
+}
+
+# ----------------- PITCH CONFIG -----------------
+if(EnginePitchInput){ PitchValue = EnginePitchInput } else { PitchValue = EnginePitch }
+
+# ----------------- REPAIR -----------------
+if(Repair){
+    GearBroken = 0
+    GearDamageCounter = 0
+    EngineBroken = 0
+    EngineRedlineTimer = 0
+    EngineTempVal = 20
+    NextTempWarning = 100
+    
+    ClutchBroken = 0
+ClutchDamageCounter = 0
+ClutchHoldTimer = 0
+
+    
+
+    # STOP FIRE / DAMAGE SOUNDS
+    soundStop(2) # Gearbox fire
+    soundStop(4) # stop clutch wear/break sound
+    soundStop(5) # Engine fire
+    GearboxFirePlaying = 0
+
+    soundPlay(0,0,Repair_Sound)
+    print("Locomotive Repaired")
+}
+
+
+if(Active){
+    Weld = E:isWeldedTo()
+
+# ----------------- CLUTCH -----------------
+if(ClutchInput & !ClutchBroken){
+    Mul = 0
+    MaxSpeed = 0
+    Clutch = 1
+    if(!PrevClutchState){
+        print("Clutch Engaged")
+        soundPlay(4,0,Clutch_Sound)
+    }
+} else {
+    Clutch = 0
+    if(GearBroken){
+        Mul = 0
+        MaxSpeed = 0
+    } else {
+        Mul = GearMul[Gear,number]
+        MaxSpeed = GearSpd[Gear,number]
+    }
+    if(PrevClutchState){
+        print("Clutch Released")
+        soundPlay(4,0,Clutch_Sound)
+    }
+}
+PrevClutchState = ClutchInput
+
+  
+# ----------------- SHIFT PERMISSION -----------------
+CanShift = (ClutchInput & !ClutchBroken)
+
+
+
+# ----------------- GEARBOX -----------------
+if(!GearBroken){
+
+
+    # DOWN SHIFT INPUT
+    if(A & !PrevA){
+        OldGear = Gear
+        Gear = clamp(Gear-1,1,MaxGear)
+
+        # ----------------- HARSH DOWNSHIFT DAMAGE -----------------
+        if(MPH >= 25){
+            if(OldGear >= 4 & Gear <= 3){
+                GearBroken = 1
+                print("GEARBOX FAILURE! Harsh downshift at "+MPH:toString()+" MPH")
+                soundPlay(1,0,GearBreak_Sound)
+            }
+        }
+
+        # Print current gear
+        if(Gear != OldGear){
+            print("Current Gear: "+OldGear+" -> "+Gear)
+        }
+
+        # ----------------- SHIFT DAMAGE LOGIC -----------------
+
+        # Broken clutch (no isolation)
+        if(ClutchBroken){
+            GearDamageCounter += 1
+            print("GEAR DAMAGE ("+GearDamageCounter+"/3)")
+            soundPlay(1,0,GearCrunch_Sound)
+
+        # Worn clutch = hard shift
+        }elseif(ClutchWear >= 3 & !ClutchInput){
+            GearDamageCounter += 1
+            print("HARD SHIFT - CLUTCH WORN ("+GearDamageCounter+"/3)")
+            soundPlay(1,0,GearCrunch_Sound)
+
+        # Normal clutch use
+        }elseif(ClutchInput){
+            soundPlay(1,0,GearUp_Sound)
+
+        # No clutch input at all
+        }else{
+            GearDamageCounter += 1
+            print("GEAR DAMAGE ("+GearDamageCounter+"/3)")
+            soundPlay(1,0,GearCrunch_Sound)
+        }
+    }
+
+    # UP SHIFT INPUT
+    if(D & !PrevD){
+        OldGear = Gear
+        Gear = clamp(Gear+1,1,MaxGear)
+
+        if(Gear != OldGear){
+            print("Current Gear: "+OldGear+" -> "+Gear)
+        }
+
+        # ----------------- SHIFT DAMAGE LOGIC -----------------
+
+        if(ClutchBroken){
+            GearDamageCounter += 1
+            print("GEAR DAMAGE ("+GearDamageCounter+"/3)")
+            soundPlay(1,0,GearCrunch_Sound)
+
+        }elseif(ClutchWear >= 3 & !ClutchInput){
+            GearDamageCounter += 1
+            print("HARD SHIFT - CLUTCH WORN ("+GearDamageCounter+"/3)")
+            soundPlay(1,0,GearCrunch_Sound)
+
+        }elseif(ClutchInput){
+            soundPlay(1,0,GearUp_Sound)
+
+        }else{
+            GearDamageCounter += 1
+            print("GEAR DAMAGE ("+GearDamageCounter+"/3)")
+            soundPlay(1,0,GearCrunch_Sound)
+        }
+    }
+
+    # ----------------- TOTAL DAMAGE CHECK -----------------
+    if(GearDamageCounter > 3){
+        GearBroken = 1
+        print("GEARBOX FAILURE")
+        soundPlay(1,0,GearBreak_Sound)
+    }
+}
+
+# Save previous A/D state
+PrevA = A
+PrevD = D
+
+
+
+
+
+    # ----------------- THROTTLE -----------------
+    if(EngineBroken){ 
+        Throttle = 0
+        NegativeThrottle = 0
+    } else {
+        if(Space){ Throttle = 0 NegativeThrottle = 0 } 
+        elseif((W|S) & !->Throttle_OVR){ Throttle += (W-S)*0.5 }
+        elseif(->Throttle_OVR){ Throttle = Throttle_OVR }
+
+        Throttle = clamp(Throttle,-10,10)
+        NegativeThrottle = -Throttle
+    }
+
+    if(Throttle != PrevThrottle){ print("Throttle: "+Throttle) }
+    PrevThrottle = Throttle
+
+    # ----------------- SPEED -----------------
+    V = -E:velL():z()
+    Spd = abs(V)
+    MPH = toUnit("mph",Spd)
+    KPH = toUnit("km/h",Spd)
+    
+  # ----------------- CLUTCH WEAR -----------------
+if(!ClutchBroken){
+
+    # Holding clutch while moving causes wear
+    if(ClutchInput & abs(V) > 50){
+        ClutchWearTimer += tickInterval()
+
+        if(ClutchWearTimer >= 1){
+            ClutchWear += 1
+            ClutchWearTimer = 0
+
+            if(ClutchWear <= 3){
+                print("Clutch wear "+ClutchWear+"/3")
+            }
+        }
+    } else {
+        ClutchWearTimer = 0
+    }
+
+    # Break clutch when exceeded
+    if(ClutchWear > 3){
+        ClutchBroken = 1
+        print("Clutch Broken, you wore it out")
+        soundPlay(2,0,Clutch_Sound)
+    }
+}
+
+
+
+    # ----------------- NOTCH -----------------
+    if(Throttle > 0){ Notch = ceil(Throttle/10*8) }
+    elseif(Throttle < 0){ Notch = -ceil(abs(Throttle)/10*8) }
+    else{ Notch = 0 }
+
+    # ----------------- TARGET RPM -----------------
+    if(Notch==0){ TargetRPM=300 }
+    elseif(Notch==1 | Notch==-1){ TargetRPM=Notch1TargetRPM } 
+    elseif(Notch==2 | Notch==-2){ TargetRPM=Notch2TargetRPM }  
+    elseif(Notch==3 | Notch==-3){ TargetRPM=Notch3TargetRPM } 
+    elseif(Notch==4 | Notch==-4){ TargetRPM=Notch4TargetRPM }
+    elseif(Notch==5 | Notch==-5){ TargetRPM=Notch5TargetRPM }
+    elseif(Notch==6 | Notch==-6){ TargetRPM=Notch6TargetRPM } 
+    elseif(Notch==7 | Notch==-7){ TargetRPM=Notch7TargetRPM } 
+    elseif(Notch==8 | Notch==-8){ TargetRPM=Notch8TargetRPM }
+
+    # ----------------- SMOOTH RPM -----------------
+    RPM += (TargetRPM-RPM)*0.2
+    RPM += random(-20,20)
+    RPM = floor(RPM*100)/100
+
+# ----------------- ENGINE TEMPERATURE -----------------
+if(EngineBroken){
+    EngineTempVal = 200
+} else {
+    LoadFactor = clamp(RPM / EngineMax, 0, 1)
+
+if(EngineRedlineTimer > 0){
+    # Over-revving: heat rises in sync with failure timer
+    RedlineFrac = clamp(EngineRedlineTimer / 15, 0, 1)
+
+    # Progressive heating curve
+    AbuseHeat = 0.2 + RedlineFrac * 0.8
+    EngineTempVal += AbuseHeat
+}
+  else {
+        # NORMAL THERMAL BEHAVIOUR (SLOW)
+        TargetTemp = 20 + LoadFactor * 80   # 20  100
+
+        if(TargetTemp > EngineTempVal){
+            # Heating up (slow)
+            EngineTempVal += (TargetTemp - EngineTempVal) * 0.0008
+        } else {
+            # Cooling down (very slow)
+            EngineTempVal += (TargetTemp - EngineTempVal) * 0.003
+        }
+    }
+
+    EngineTempVal = clamp(EngineTempVal, 20, 200)
+}
+EngineTemp = EngineTempVal
+
+
+# ----------------- TEMP WARNINGS -----------------
+if(EngineTempVal >= NextTempWarning){
+    if(NextTempWarning < 180){
+        print("ENGINE TEMP WARNING: "+NextTempWarning+"C")
+        NextTempWarning += 20
+    } elseif(NextTempWarning == 180){
+        print("ENGINE FAILURE IMMINENT")
+        NextTempWarning = 200
+    }
+}
+
+
+    # ----------------- ENGINE SOUND -----------------
+    if(!EngineBroken){
+        if(Notch != CurrentNotch | (Notch==0 & !soundPlaying(0))){
+            if(Notch == 0){ soundPlay(0,0,Diesel_Sound) }
+            elseif(Notch > 0){
+                if(Notch == 1){ soundPlay(0,0,Notch1_Sound) }
+                elseif(Notch == 2){ soundPlay(0,0,Notch2_Sound) }
+                elseif(Notch == 3){ soundPlay(0,0,Notch3_Sound) }
+                elseif(Notch == 4){ soundPlay(0,0,Notch4_Sound) }
+                elseif(Notch == 5){ soundPlay(0,0,Notch5_Sound) }
+                elseif(Notch == 6){ soundPlay(0,0,Notch6_Sound) }
+                elseif(Notch == 7){ soundPlay(0,0,Notch7_Sound) }
+                elseif(Notch == 8){ soundPlay(0,0,Notch8_Sound) }
+            }
+            elseif(Notch < 0){
+                N = abs(Notch)
+                if(N == 1){ soundPlay(0,0,Notch1_Rev_Sound) }
+                elseif(N == 2){ soundPlay(0,0,Notch2_Rev_Sound) }
+                elseif(N == 3){ soundPlay(0,0,Notch3_Rev_Sound) }
+                elseif(N == 4){ soundPlay(0,0,Notch4_Rev_Sound) }
+                elseif(N == 5){ soundPlay(0,0,Notch5_Rev_Sound) }
+                elseif(N == 6){ soundPlay(0,0,Notch6_Rev_Sound) }
+                elseif(N == 7){ soundPlay(0,0,Notch7_Rev_Sound) }
+                elseif(N == 8){ soundPlay(0,0,Notch8_Rev_Sound) }
+            }
+            CurrentNotch = Notch
+        }
+
+        if(PitchValue){ 
+            soundPitch(0, EngineMin + (EngineMax-EngineMin)*abs(Throttle)/10) 
+        }
+    }
+
+    # ----------------- GEARBOX FIRE SOUND -----------------
+    if(GearBroken & !GearboxFirePlaying){
+        soundPlay(2,0,GearboxFire_Sound)
+        GearboxFirePlaying = 1
+    } elseif(!GearBroken & GearboxFirePlaying){
+        soundStop(2)
+        GearboxFirePlaying = 0
+    }
+
+    # ----------------- ENGINE BREAK LOGIC -----------------
+    if(!EngineBroken){
+        if(RPM >= EngineMax*0.95){
+            EngineRedlineTimer += 0.02
+        } else { EngineRedlineTimer = 0 }
+        
+        if(EngineRedlineTimer >= 15){
+            EngineBroken = 1
+            Throttle = 0
+            NegativeThrottle = 0
+            print("ENGINE FAILURE!")
+            soundStop(0)
+            soundPlay(4,0,EngineBreak_Sound)
+            soundPlay(5,0,EngineFire_Sound)
+            Mul = 0
+            MaxSpeed = 0
+        }
+    }
+
+    # ----------------- FORCE -----------------
+    Dir = -E:up()
+    TargetSpeed = MaxSpeed * Throttle / 10
+    Weld:applyForce(Dir * (TargetSpeed - V) * Mul * 2)
+
+if(!TrainBrake & PrevTB & PrintedTB){
+    print("Train Brake Released")
+    soundStop(3)
+    PrintedTB = 0
+}
+
+if(!IndepBrake & PrevIB & PrintedIB){
+    print("Independent Brake Released")
+    soundStop(3)
+    PrintedIB = 0
+}
+
+if(!HandBrake & PrevHB & PrintedHB){
+    print("Handbrake Released")
+    soundStop(3)
+    PrintedHB = 0
+}
+# ----------------- BRAKE PRINTS -----------------
+if(TrainBrake & !PrevTB){
+    print("Train Brake Applied")
+    soundPlay(3,0,TrainBrake_Sound)
+    PrintedTB = 1
+}
+
+if(IndepBrake & !PrevIB){
+    print("Independent Brake Applied")
+    soundPlay(3,0,IndepBrake_Sound)
+    PrintedIB = 1
+}
+
+if(HandBrake & !PrevHB){
+    print("Handbrake Applied")
+    soundPlay(3,0,HandBrake_Sound)
+    PrintedHB = 1
+}
+
+
+# ----------------- BRAKES (main tick, proper toggle, no spam) -----------------
+
+# Use chat brake toggles if set, else use player input
+IndepBrakeFinal = (ChatIndepBrake == 1) ? 1 : IndepBrake
+TrainBrakeFinal = (ChatTrainBrake == 1) ? 1 : TrainBrake
+HandBrakeFinal = (ChatHandBrake == 1) ? 1 : HandBrake
+
+# ----------------- APPLY BRAKE FORCES -----------------
+BrakeDir = -Dir * sign(V)
+
+if(IndepBrakeFinal == 1){ Weld:applyForce(BrakeDir * abs(V) * BrakeScale * 120) }
+if(TrainBrakeFinal == 1){ Weld:applyForce(BrakeDir * abs(V) * BrakeScale * 120) }
+if(HandBrakeFinal == 1){ Weld:applyForce(BrakeDir * abs(V) * HandBrakeScale * 160) }
+
+# ----------------- PRINTS / SOUNDS (trigger once per change) -----------------
+# Independent Brake
+if(IndepBrakeFinal != PrevIB){
+    if(IndepBrakeFinal == 1){ print("Independent Brake Applied") soundPlay(3,0,IndepBrake_Sound) }
+    else { print("Independent Brake Released") }
+    PrevIB = IndepBrakeFinal
+}
+
+# Train Brake
+if(TrainBrakeFinal != PrevTB){
+    if(TrainBrakeFinal == 1){ print("Train Brake Applied") soundPlay(3,0,TrainBrake_Sound) }
+    else { print("Train Brake Released") }
+    PrevTB = TrainBrakeFinal
+}
+
+# Hand Brake
+if(HandBrakeFinal != PrevHB){
+    if(HandBrakeFinal == 1){ print("Handbrake Applied") soundPlay(3,0,HandBrake_Sound) }
+    else { print("Handbrake Released") }
+    PrevHB = HandBrakeFinal
+}
+
+
+# Save previous state
+PrevTB = TrainBrakeFinal
+PrevIB = IndepBrakeFinal
+PrevHB = HandBrakeFinal
+
+# ----------------- ENGINE STALL LOGIC -----------------
+if(!ClutchInput & !EngineBroken){
+
+    # Only apply RPM drop if gear changed
+    if(Gear != PrevGear){
+        if(Gear >= 1 & Gear <= 3){
+            RPM -= random(20,60)
+        } elseif(Gear >= 4 & Gear <= 6){
+            RPM -= random(100,200)
+        }
+        RPM = max(RPM, 100)
+    }
+
+    # Stall logic
+    Stalled = 0
+    if(Gear == 2 | Gear == 3){
+        if(RPM < 400){ Stalled = 1 }
+    } elseif(Gear >= 4 & Gear <= 6){
+        if(RPM < 650){ Stalled = 1 }
+    }
+
+    # Gear 1 cannot stall
+    if(Gear == 1){ Stalled = 0 }
+
+    # Apply stall without breaking engine
+    if(Stalled){
+        EngineStalled = 1
+        RPM = 0
+        Throttle = 0
+        NegativeThrottle = 0
+
+        # Only print once per stall
+        if(!PrevEngineStalled){
+            print("ENGINE STALLED! Use key/Active to restart")
+            soundPlay(0,0,EngineStall_Sound)
+        }
+    } else {
+        EngineStalled = 0
+    }
+
+} else {
+    EngineStalled = 0
+}
+
+# Save previous gear & stall state for next tick
+PrevGear = Gear
+PrevEngineStalled = EngineStalled
+
+
+} else {
+    Throttle = NegativeThrottle = V = Spd = MPH = KPH = 0
+    RPM = TargetRPM = 300
+    GearBroken = 0
+    GearDamageCounter = 0
+    EngineBroken = 0
+    EngineRedlineTimer = 0
+    GearboxFirePlaying = 0
+    EngineTempVal = 20
+    NextTempWarning = 100
+    soundStop(0)
+    soundStop(2)
+    soundStop(4)
+    soundStop(5)
+}
+
+
+
+GearboxBroken = GearBroken
