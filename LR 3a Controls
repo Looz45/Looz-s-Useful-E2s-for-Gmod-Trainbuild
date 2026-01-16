@@ -1,0 +1,175 @@
+@name LR 3a Controls
+@inputs ThrottleF ReverserF Brake TrainBrake CurrentGear
+@outputs
+@persist F RFBase RFLever ThrottleNotchF Scale LastThrottleF LastReverserF ReverserValueF GB GBL
+@model 
+
+if(first() | dupefinished()){
+    Scale = 1
+
+    # --- FRONT THROTTLE LEVER ---
+    F = 1
+    holoCreate(F)
+    holoModel(F, "models/anytrains/props/shapes/throttle_lever_base.mdl")
+    holoScale(F, vec(Scale))
+    holoColor(F, vec(36))
+    holoPos(F, entity():toWorld(vec(-2, 2, 0)))
+    holoAng(F, entity():toWorld(ang(0, 0, 90)))
+    holoParent(F, entity())
+    for (I = 1, 6) { holoEntity(F):setSubMaterial(1, "models/proppertextures/acrylic2_hw") }
+
+    # --- FRONT REVERSER BASE ---
+    RFBase = 3
+    holoCreate(RFBase)
+    holoModel(RFBase, "models/floofy/trainparts/misc/ellcon_33000.mdl")
+    holoScale(RFBase, vec(0.7 * Scale))
+    holoColor(RFBase, vec(36))
+    holoPos(RFBase, entity():toWorld(vec(0, 10, 0.8)))
+    holoAng(RFBase, entity():toWorld(ang(0, 0, 0)))
+    holoParent(RFBase, entity())
+    holoEntity(RFBase):setSubMaterial(1, "models/proppertextures/acrylic2_hw")
+    holoEntity(RFBase):setSubMaterial(5, "models/proppertextures/acrylic2_hw")
+
+    # --- FRONT REVERSER LEVER ---
+    RFLever = 4
+    holoCreate(RFLever)
+    holoModel(RFLever, "models/ext/stand/levers/ge_throttle.mdl")
+    holoScale(RFLever, vec(0.7 * Scale))
+    holoColor(RFLever, vec(36))
+    holoPos(RFLever, entity():toWorld(vec(2, 10, 0.8)))
+    holoAng(RFLever, entity():toWorld(ang(90, 0, 0)))
+    holoParent(RFLever, entity())
+    holoEntity(RFLever):setSubMaterial(1, "models/proppertextures/enamel_black")
+    holoEntity(RFLever):setSubMaterial(2, "models/proppertextures/aluminum")
+
+    # --- BRAKE BASE & LEVERS ---
+    # Brake Base 1
+    BB1 = 8
+    holoCreate(BB1)
+    holoModel(BB1, "models/cheeze/wires/speaker.mdl")
+    holoScale(BB1, vec(0.7 * Scale))
+    holoColor(BB1, vec(36))
+    holoPos(BB1, entity():toWorld(vec(0, -7.5, 1.5)))
+    holoAng(BB1, entity():toWorld(ang(0, 0, 180)))
+    holoParent(BB1, entity())
+    holoEntity(BB1):setSubMaterial(1, "models/proppertextures/acrylic2_hw")
+    holoEntity(BB1):setSubMaterial(3, "models/proppertextures/acrylic2_hw")
+    
+    # Brake Base 2
+    BB1 = 9
+    holoCreate(BB1)
+    holoModel(BB1, "models/bull/gates/capacitor.mdl")
+    holoScale(BB1, vec(0.5 * Scale))
+    holoColor(BB1, vec(255))
+    holoPos(BB1, entity():toWorld(vec(0, -7.5, 1.5)))
+    holoAng(BB1, entity():toWorld(ang(0, 0, 0)))
+    holoParent(BB1, entity())
+    for (I = 1, 4) { holoEntity(BB1):setSubMaterial(I, "models/proppertextures/enamel_black") }
+
+    # Brake Lever
+    BB1 = 10
+    holoCreate(BB1)
+    holoModel(BB1, "models/monkcabdetailpack/alco/alco_rs3_locobrake.mdl")
+    holoScale(BB1, vec(0.7 * Scale))
+    holoColor(BB1, vec(255))
+    holoPos(BB1, entity():toWorld(vec(0, -7.5, 2)))
+    holoAng(BB1, entity():toWorld(ang(0, -90, 0)))
+    holoParent(BB1, entity())
+    holoEntity(BB1):setSubMaterial(1, "models/proppertextures/aluminum")
+    holoEntity(BB1):setSubMaterial(2, "models/proppertextures/enamel_black")
+
+    # Train Brake Lever
+    BB1 = 11
+    holoCreate(BB1)
+    holoModel(BB1, "models/monkcabdetailpack/alco/alco_rs3_trainbrake.mdl")
+    holoScale(BB1, vec(0.7 * Scale))
+    holoColor(BB1, vec(255))
+    holoPos(BB1, entity():toWorld(vec(0, -7.5, 3.75)))
+    holoAng(BB1, entity():toWorld(ang(0, -80, 0)))
+    holoParent(BB1, entity())
+    holoEntity(BB1):setSubMaterial(1, "models/proppertextures/enamel_black")
+    holoEntity(BB1):setSubMaterial(2, "models/proppertextures/aluminum")
+
+    # --- GEAR LEVER ---
+    GB = 12
+    holoCreate(GB)
+    holoModel(GB, "models/details/basic_throttle_base/basic_throttle_base.mdl")
+    holoScale(GB, vec(0.7 * Scale))
+    holoColor(GB, vec(36))
+    holoPos(GB, entity():toWorld(vec(-2, -2, -4)))
+    holoAng(GB, entity():toWorld(ang(0, 0, 0)))
+    holoParent(GB, entity())
+    holoEntity(GB):setSubMaterial(1, "models/proppertextures/acrylic2_hw") 
+    
+    GBL = 13
+    holoCreate(GBL)
+    holoModel(GBL, "models/ext/stand/levers/ge_locobrake.mdl")
+    holoScale(GBL, vec(0.7 * Scale))
+    holoColor(GBL, vec(130,30,30))
+    holoPos(GBL, entity():toWorld(vec(-2, -2, -0)))
+    holoAng(GBL, entity():toWorld(ang(0, 0, 0))) # initial angle
+    holoParent(GBL, entity())
+    holoEntity(GBL):setSubMaterial(2, "models/proppertextures/acrylic2_hw") 
+
+    # Initialize memory
+    LastThrottleF = -1
+    LastReverserF = 0
+}
+
+# --- FRONT THROTTLE ---
+if (ThrottleF != LastThrottleF) {
+    LastThrottleF = ThrottleF
+    ThrottleNotchF = round(clamp((ThrottleF / 10) * 8, 0, 8))
+    holoBodygroup(F, 1, ThrottleNotchF)
+    soundPlay(1, 0, "gsgtrainsounds/misc/cab/emd_composite_throttle_2.wav")
+    soundPitch(1, 100)
+}
+
+# --- FRONT REVERSER ---
+if (abs(ReverserF - LastReverserF) > 0.01) {
+    LastReverserF = ReverserF
+
+    if (ReverserF > 0.1) {
+        ReverserValueF = 20
+        soundPlay(2, 0, "gsgtrainsounds/misc/cab/reverser_neutral_3.wav") # forward
+    } elseif (ReverserF < -0.1) {
+        ReverserValueF = -20
+        soundPlay(2, 0, "gsgtrainsounds/misc/cab/reverser_neutral.wav") # reverse
+    } else {
+        ReverserValueF = 0
+        soundPlay(2, 0, "gsgtrainsounds/misc/cab/reverser_fr_b23-7.wav") # neutral
+    }
+
+    holoAng(RFLever, entity():toWorld(ang(90, ReverserValueF, 0)))
+}
+
+# --- BRAKE LEVER ---
+BrakeAngle = 0
+if (Brake == 1) {
+    BrakeAngle = 60
+    soundPlay(3, 0, "gsgtrainsounds/misc/cab/sand_loop.wav")
+    soundPitch(3, 100)
+} else {
+    soundPlay(3, 0, "gsgtrainsounds/misc/cab/sand_end.wav")
+    soundPitch(3, 100)
+}
+holoAng(10, entity():toWorld(ang(0, -90 + BrakeAngle, 0)))
+
+# --- TRAIN BRAKE LEVER ---
+TrainBrakeAngle = 0
+if (TrainBrake == 1) {
+    TrainBrakeAngle = 40
+    soundPlay(4, 0, "gsgtrainsounds/misc/cab/sand_loop4.wav")
+    soundPitch(4, 100)
+} else {
+    soundPlay(4, 0, "gsgtrainsounds/misc/cab/sand_end4.wav")
+    soundPitch(4, 100)
+}
+holoAng(11, entity():toWorld(ang(0, -80 + TrainBrakeAngle, 0)))
+
+# --- GEAR LEVER ---
+CurrentGear = clamp(CurrentGear, 1, 6)
+MinAngle = -35
+Step = 20
+GearAngle = MinAngle + (CurrentGear - 1) * Step
+holoAng(GBL, entity():toWorld(ang(0, 90, GearAngle)))
