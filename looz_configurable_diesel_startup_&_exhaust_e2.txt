@@ -1,0 +1,245 @@
+@name Looz Configurable Diesel Startup & Exhaust E2
+@inputs On_Signal Throttle1 Throttle2
+@outputs DelayedSignal ReverserOutput HeatwaveEmit Particle:string ParticleOn CombinedOutput
+
+
+# This E2 was designed to Work with my other Diesel locomotive control chips & also my Loco control e2s.
+# Github <https://github.com/Looz45/Looz-s-Useful-E2s-for-Gmod-Trainbuild>
+
+# Timers & stage
+@persist Timer PhaseTimer Active Stage MessageSent OnSignalActive
+
+# Phase configuration
+@persist Phase1_Enabled Phase1_Puff Phase1_Duration
+@persist Phase2_Enabled Phase2_Puff Phase2_Duration
+@persist Phase3_Enabled Phase3_Puff Phase3_Duration
+@persist Phase4_Enabled Phase4_Puff Phase4_Duration
+
+@persist Phase1_Particle:string
+@persist Phase2_Particle:string
+@persist Phase3_Particle:string
+@persist Phase4_Particle:string
+
+# Throttle config
+@persist ThrottleParticlePrefix:string MaxThrottleLevel IdleParticle:string
+
+# Smoke multiplier
+@persist Mul
+
+@trigger On_Signal
+
+interval(100)
+
+# -------------------------------
+# CONFIGURATION
+# -------------------------------
+Phase1_Enabled = 1
+Phase1_Particle = "clag_4stroke_2"
+Phase1_Puff = 1
+Phase1_Duration = 3
+
+Phase2_Enabled = 1
+Phase2_Particle = "clag_4stroke_3"
+Phase2_Puff = 1
+Phase2_Duration = 4
+
+Phase3_Enabled = 0
+Phase3_Particle = ""
+Phase3_Puff = 0
+Phase3_Duration = 0
+
+Phase4_Enabled = 0
+Phase4_Particle = ""
+Phase4_Puff = 0
+Phase4_Duration = 0
+
+InitSound = "chrispsssssssspack/r/hurrah.wav"
+StartSound = "kei/trains/engines/ee_6kt/startup.wav"
+ShutdownSound = "kei/trains/engines/ee_6kt/shutdown.wav"
+
+IdleParticle = "clag_2stroke_2"
+ThrottleParticlePrefix = "clag_2stroke_"
+MaxThrottleLevel = 5 # 1 - 8 Is intensity of Smoke, for diesels 4-5 is a good value
+
+
+# -------------------------------
+# INIT
+# -------------------------------
+CombinedOutput = max(Throttle1, abs(Throttle2))
+
+if (first()) {
+    Timer = 0
+    PhaseTimer = 0
+    Active = 0
+    Stage = 1
+    Particle = ""
+    ParticleOn = 0
+    HeatwaveEmit = 0
+    MessageSent = 0
+    OnSignalActive = 0
+    soundPlay(1,1,InitSound)
+}
+
+# -------------------------------
+# ON_SIGNAL ACTIVATION
+# -------------------------------
+if (On_Signal & Active == 0) {
+    Active = 1
+    OnSignalActive = 1
+    Stage = 1
+    PhaseTimer = 0
+    Particle = Phase1_Particle
+    ParticleOn = Phase1_Puff 
+    HeatwaveEmit = Phase1_Puff 
+    MessageSent = 0
+    soundPlay(2,0,StartSound)
+}
+
+# -------------------------------
+# STARTUP SEQUENCE LOOP
+# -------------------------------
+if (Active) {
+
+    # Stage 1
+    if (Stage == 1) {
+        Particle = Phase1_Particle
+        ParticleOn = Phase1_Puff 
+        HeatwaveEmit = Phase1_Puff 
+
+        if (Phase1_Enabled == 1) {
+            PhaseTimer += 0.1
+        }
+
+        if (PhaseTimer >= Phase1_Duration) {
+            Stage += 1
+            PhaseTimer = 0
+        }
+        if (Phase1_Enabled == 0) {
+            Stage += 1
+            PhaseTimer = 0
+        }
+    }
+
+    # Stage 2
+    elseif (Stage == 2) {
+        Particle = Phase2_Particle
+        ParticleOn = Phase2_Puff 
+        HeatwaveEmit = Phase2_Puff 
+
+        if (Phase2_Enabled == 1) {
+            PhaseTimer += 0.1
+        }
+
+        if (PhaseTimer >= Phase2_Duration) {
+            Stage += 1
+            PhaseTimer = 0
+        }
+        if (Phase2_Enabled == 0) {
+            Stage += 1
+            PhaseTimer = 0
+        }
+    }
+
+    # Stage 3
+    elseif (Stage == 3) {
+        Particle = Phase3_Particle
+        ParticleOn = Phase3_Puff 
+        HeatwaveEmit = Phase3_Puff 
+
+        if (Phase3_Enabled == 1) {
+            PhaseTimer += 0.1
+        }
+
+        if (PhaseTimer >= Phase3_Duration) {
+            Stage += 1
+            PhaseTimer = 0
+        }
+        if (Phase3_Enabled == 0) {
+            Stage += 1
+            PhaseTimer = 0
+        }
+    }
+
+    # Stage 4
+    elseif (Stage == 4) {
+        Particle = Phase4_Particle
+        ParticleOn = Phase4_Puff 
+        HeatwaveEmit = Phase4_Puff 
+
+        if (Phase4_Enabled == 1) {
+            PhaseTimer += 0.1
+        }
+
+        if (PhaseTimer >= Phase4_Duration) {
+            Stage += 1
+            PhaseTimer = 0
+        }
+        if (Phase4_Enabled == 0) {
+            Stage += 1
+            PhaseTimer = 0
+        }
+    }
+
+    # Final stage after all phases
+    if (Stage > 4) {
+        Particle = ""
+        ParticleOn = 0
+        HeatwaveEmit = 1
+    }
+}
+
+# -------------------------------
+# DELAYED SIGNAL
+# -------------------------------
+if (Stage > 4 & On_Signal) {
+    DelayedSignal = 1
+    if (MessageSent == 0) {
+        print("Startup Procedure finished")
+        MessageSent = 1
+    }
+} else {
+    DelayedSignal = 0
+}
+
+# -------------------------------
+# SHUTDOWN
+# -------------------------------
+if (changed(On_Signal) & On_Signal == 0) {
+    if (OnSignalActive == 1) {
+        soundPlay(3,0,ShutdownSound)
+        OnSignalActive = 0
+    }
+    Active = 0
+    PhaseTimer = 0
+    Stage = 1
+    Particle = ""
+    ParticleOn = 0
+    HeatwaveEmit = 0
+    MessageSent = 0
+}
+
+# -------------------------------
+# THROTTLE & EXHAUST PARTICLES (after startup only)
+# -------------------------------
+if (Stage > 4 | Active == 0) {
+    CombinedOutput = max(Throttle1, abs(Throttle2))
+    FakeThrottle = CombinedOutput + 0.01
+
+    if (FakeThrottle < 0.1) {
+        Particle = IdleParticle
+        ParticleOn = 1 
+    } else {
+        ThrottleLevel = ceil(FakeThrottle / 10 * MaxThrottleLevel)
+        ThrottleLevel = clamp(ThrottleLevel, 1, MaxThrottleLevel)
+        Particle = ThrottleParticlePrefix + ThrottleLevel
+        ParticleOn = 1 
+    }
+
+    if (Throttle1 > 0.01) {
+        ReverserOutput = Throttle1
+    } elseif (Throttle2 > 0.01) {
+        ReverserOutput = -Throttle2
+    } else {
+        ReverserOutput = 0
+    }
+}
