@@ -1,7 +1,7 @@
 @name Foot Pedal Clutch
 @inputs Clutch
 @outputs
-@persist Base Pedal Pivot
+@persist Base Pedal Pivot PressAng
 @model models/sprops/cuboids/height06/size_2/cube_12x18x6.mdl
 
 if(first() | dupefinished()) {
@@ -49,8 +49,8 @@ if(first() | dupefinished()) {
 # --- Pedal press ---
 if(Clutch == 1) {
     # Rotate pivot to press pedal
-    holoAng(Pivot, ang(-10,0,90))
+    holoAng(Pivot, entity():toWorld(ang(-10,0,90)))    # initial angle
 } else {
     # Pivot back to released
-    holoAng(Pivot, ang(5,0,90))
+    holoAng(Pivot, entity():toWorld(ang(5,0,90)))    # initial angle
 }
