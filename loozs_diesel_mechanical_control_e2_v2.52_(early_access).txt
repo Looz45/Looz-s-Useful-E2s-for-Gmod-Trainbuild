@@ -22,7 +22,7 @@
 # This chip is designed to work with my startup, clag and control e2s. Which will be inside my Github
 # 
 #
-# This is Version 2.52 (Early access, some bugs may be present)
+# This is Version 2.53 (Early access, some bugs may be present)
 # Created by #Looz45 (discord) and with the help of chatgpt, feel free to contact me if you have any questions.
 # 
 #
