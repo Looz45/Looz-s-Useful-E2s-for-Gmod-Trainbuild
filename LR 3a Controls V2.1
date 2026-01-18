@@ -1,12 +1,13 @@
-@name LR 3a Controls
-@inputs ThrottleF ReverserF Brake TrainBrake CurrentGear
+@name LR Controls V2
+@inputs ThrottleF ReverserF Brake TrainBrake CurrentGear MaxGear
 @outputs
-@persist F RFBase RFLever ThrottleNotchF Scale LastThrottleF LastReverserF ReverserValueF GB GBL
+@persist F RFBase RFLever ThrottleNotchF Scale LastThrottleF LastReverserF ReverserValueF GB GBL MaxGear Step
 @model 
 
 if(first() | dupefinished()){
     Scale = 1
-
+    Step = 17 #Changes the angle of which gear lands where. Usefull for when you have multiple gears.
+    
     # --- FRONT THROTTLE LEVER ---
     F = 1
     holoCreate(F)
@@ -168,8 +169,8 @@ if (TrainBrake == 1) {
 holoAng(11, entity():toWorld(ang(0, -80 + TrainBrakeAngle, 0)))
 
 # --- GEAR LEVER ---
-CurrentGear = clamp(CurrentGear, 1, 6)
+CurrentGear = clamp(CurrentGear, 1, MaxGear)
 MinAngle = -35
-Step = 20
+
 GearAngle = MinAngle + (CurrentGear - 1) * Step
 holoAng(GBL, entity():toWorld(ang(0, 90, GearAngle)))
