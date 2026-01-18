@@ -754,7 +754,7 @@ if(!ClutchInput & !EngineBroken){
     Stalled = 0
     if(Gear == 2 | Gear == 3){
         if(RPM < LOWGEARSTALL){ Stalled = 1 }
-    } elseif(Gear >= 4 & Gear <= 6){
+    } elseif(Gear >= 4 & Gear <= MaxGear){
         if(RPM < HIGHGEARSTALL){ Stalled = 1 }
     }
 
