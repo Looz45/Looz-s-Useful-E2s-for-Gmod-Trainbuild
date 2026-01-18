@@ -1,6 +1,6 @@
-@name Loozs Diesel Mechanical Control E2 V2.53 (Early Access)
+@name Loozs Diesel Mechanical Control E2 V2.54 (Early Access)
 @inputs Active W S A D Space ClutchInput TrainBrake IndepBrake HandBrake Throttle_OVR Repair EnginePitchInput
-@outputs MPH KPH V Throttle NegativeThrottle OPS Gear RPM Clutch GearboxBroken EngineBroken EngineTemp
+@outputs MPH KPH V Throttle NegativeThrottle OPS Gear RPM Clutch GearboxBroken EngineBroken EngineTemp MaxGear
 @persist MaxSpeed Mul BrakeScale HandBrakeScale EnginePitch
 @persist [E O Weld]:entity
 @persist EngineMin EngineMax Mode CurrentNotch TargetRPM
@@ -9,8 +9,8 @@
 @persist GearboxFirePlaying EngineBroken EngineRedlineTimer EngineTempVal NextTempWarning
 @persist ChatIndepBrake ChatTrainBrake ChatHandBrake
 @persist ClutchHoldTimer ClutchDamageCounter ClutchBroken CanShift
-@persist ClutchWear ClutchBroken ClutchWearTimer
-@persist PrevGear PrevEngineStalled HIGHGEARSTALL LOWGEARSTALL
+@persist ClutchWear ClutchBroken ClutchWearTimer MaxHLowGearStall MaxLHighGearStall
+@persist PrevGear PrevEngineStalled LOWGEARSTALL HIGHGEARSTALL
 @persist Notch1TargetRPM Notch2TargetRPM Notch3TargetRPM Notch4TargetRPM Notch5TargetRPM Notch6TargetRPM Notch7TargetRPM Notch8TargetRPM
 @trigger
 @model models/beer/wiremod/watersensor.mdl
@@ -22,7 +22,7 @@
 # This chip is designed to work with my startup, clag and control e2s. Which will be inside my Github
 # 
 #
-# This is Version 2.53 (Early access, some bugs may be present)
+# This is Version 2.54 (Early access, some bugs may be present)
 # Created by #Looz45 (discord) and with the help of chatgpt, feel free to contact me if you have any questions.
 # 
 #
@@ -37,19 +37,22 @@
 # (.currenttemps) reads current engine temperature (engine explodes at 200 degrees celcius)
 # (.restart) restarts the engine, youll need to be in gear 1 for this.
 #
-# Think thats about it for now > Youtube tutorial here <https://www.youtube.com/watch?v=LE1-zvBwbSA>
+# Think thats about it for now > Youtube tutorial here <url>
 # Github <https://github.com/Looz45/Looz-s-Useful-E2s-for-Gmod-Trainbuild>
+#
+#
+#
 # ----------------- LOCAL SOUNDS -----------------
-local Diesel_Sound = "kei/trains/engines/ee_6kt/idle.wav"
-local Notch1_Sound = "kei/trains/engines/ee_6kt/notch1.wav"
-local Notch2_Sound = "kei/trains/engines/ee_6kt/notch2.wav"
-local Notch3_Sound = "kei/trains/engines/ee_6kt/notch3.wav"
-local Notch4_Sound = "kei/trains/engines/ee_6kt/notch4.wav"
-local Notch5_Sound = "kei/trains/engines/ee_6kt/notch5.wav"
-local Notch6_Sound = "kei/trains/engines/ee_6kt/notch6.wav"
-local Notch7_Sound = "kei/trains/engines/ee_6kt/notch7.wav"
-local Notch8_Sound = "kei/trains/engines/ee_6kt/notch8.wav"
-local EngineStall_Sound = "kei/trains/engines/ee_6kt/shutdown.wav" # Shutdown sound of your engine
+local Diesel_Sound = "kei/trains/engines/napier_d18-25/idle.wav"
+local Notch1_Sound = "kei/trains/engines/napier_d18-25/notch1.wav"
+local Notch2_Sound = "kei/trains/engines/napier_d18-25/notch2.wav"
+local Notch3_Sound = "kei/trains/engines/napier_d18-25/notch3.wav"
+local Notch4_Sound = "kei/trains/engines/napier_d18-25/notch4.wav"
+local Notch5_Sound = "kei/trains/engines/napier_d18-25/notch5.wav"
+local Notch6_Sound = "kei/trains/engines/napier_d18-25/notch6.wav"
+local Notch7_Sound = "kei/trains/engines/napier_d18-25/notch7.wav"
+local Notch8_Sound = "kei/trains/engines/napier_d18-25/notch8.wav"
+local EngineStall_Sound = "kei/trains/engines/napier_d18-25/shutdown.wav" # Shutdown sound of your engine
 
 # Ignore
 local Notch1_Rev_Sound = Notch1_Sound
@@ -88,7 +91,16 @@ if(first() | dupefinished()){
     
 
     ClutchWearSpeed = 4 # How fast your clutch wears out. 1 is a good value
-    MaxGear = 6 #How many gears (if you change this you will have to change your gearing)
+    MaxGear = 7 #How many gears (if you change this you will have to change your gearing)  --- Updated V2.54 > Wire this to your LR Controls V2.1 E2 (changes how many gears it can choose)
+    
+    MaxHLowGearStall = 3 # This picks the upper limit of which gear stalls at LOWGEARSTALL --- Added V2.54
+    MaxLHighGearStall = 4 # This picks the lower limit of which gear stalls at HIGHGEARSTALL --- Added V2.54
+    
+    
+    LOWGEARSTALL=300 #RPM which the engine will stall at in gears 2-3  --- Added V2.53
+    HIGHGEARSTALL=650 #RPM which the engine will stall at in gears 4-6  --- Added V2.53
+    
+    
     Gear = 1 #ignore
     GearBroken = 0 #ignore
     GearDamageCounter = 0 #ignore
@@ -96,24 +108,28 @@ if(first() | dupefinished()){
   
 # ----------------- GEARING -----------------  
     
+# If you add or remove a gear you will have to modify these values here;
 
-    GearMul[1,number] = 800
-    GearSpd[1,number] = 100
+    GearMul[1,number] = 1800
+    GearSpd[1,number] = 230
     
-    GearMul[2,number] = 525
-    GearSpd[2,number] = 180
+    GearMul[2,number] = 1600
+    GearSpd[2,number] = 200
     
-    GearMul[3,number] = 300
-    GearSpd[3,number] = 340
+    GearMul[3,number] = 1400
+    GearSpd[3,number] = 440
     
-    GearMul[4,number] = 200
-    GearSpd[4,number] = 475
+    GearMul[4,number] = 1000
+    GearSpd[4,number] = 775
     
-    GearMul[5,number] = 170
-    GearSpd[5,number] = 870
+    GearMul[5,number] = 700
+    GearSpd[5,number] = 1400
     
-    GearMul[6,number] = 150
-    GearSpd[6,number] = 1600
+    GearMul[6,number] = 650
+    GearSpd[6,number] = 1900
+    
+    GearMul[7,number] = 550
+    GearSpd[7,number] = 2400
 
     Mul = GearMul[Gear,number]
     MaxSpeed = GearSpd[Gear,number]
@@ -133,8 +149,6 @@ if(first() | dupefinished()){
     Notch7TargetRPM=1900
     Notch8TargetRPM=2300
     
-    LOWGEARSTALL=300 #RPM which the engine will stall at in gears 2-3
-    HIGHGEARSTALL=650 #RPM which the engine will stall at in gears 4-6
 
     Throttle = 0
     TargetRPM = 300 #Keep the same as EngineMin
@@ -728,9 +742,9 @@ if(!ClutchInput & !EngineBroken){
 
     # Only apply RPM drop if gear changed
     if(Gear != PrevGear){
-        if(Gear >= 1 & Gear <= 3){
+        if(Gear >= 1 & Gear <= MaxHLowGearStall){
             RPM -= random(20,60)
-        } elseif(Gear >= 4 & Gear <= 6){
+        } elseif(Gear >= MaxLHighGearStall & Gear <= MaxGear){
             RPM -= random(100,200)
         }
         RPM = max(RPM, 100)
