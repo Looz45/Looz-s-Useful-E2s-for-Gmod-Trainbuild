@@ -1,0 +1,140 @@
+@name Looz Cylinder Cocks E2 V1
+@inputs Active Throttle Pitch CocksOverride
+@outputs ParticleOut
+@persist CockActive LastValve
+@persist CycleLength OnTime MinThrottle
+@persist CycleStart
+@persist DwellTime LowThrottleStart
+@persist SoundOn:string SoundOff:string Default_Pitch Default_Volume H:entity
+@trigger
+@model models/gsgtrainprops/parts/horns/leslie_a200.mdl
+
+interval(200)
+
+# =========================
+# INITIAL CONFIG
+# =========================
+if(first() | dupefinished()){
+
+    # -------- CONFIG --------
+    CycleLength = 240    # Total loop length (seconds)
+    OnTime      = 7     # ON time per cycle (seconds)
+    MinThrottle = 1.5      # Throttle threshold
+    DwellTime = 30   # seconds before cocks are allowed to cycle
+
+    SoundOn  = "ether2001s_train_sounds/steam/australia/vr_a2_class/cylinder_cocks_loop.wav"
+    SoundOff = "ether2001s_train_sounds/steam/australia/vr_a2_class/cylinder_cocks_end.wav"
+
+    Default_Pitch  = 100
+    Default_Volume = 77222270
+
+    CockActive = 0
+    LastValve  = 0
+    CycleStart = 0
+
+    entity():setAlpha(0)
+
+    H = holoCreate(0, entity():pos())
+    holoAlpha(0, 0)
+    holoParent(0, entity())
+}
+
+# =========================
+# MASTER ENABLE
+# =========================
+if(!Active){
+    CockActive = 0
+    CycleStart = 0
+}
+
+# =========================
+# AUTOMATIC CYCLE LOGIC (REALISTIC)
+# =========================
+AutoActive = 0
+
+if(Active & !CocksOverride){
+
+    # Throttle above threshold  hard reset
+    if(Throttle > MinThrottle){
+        CycleStart = 0
+        LowThrottleStart = 0
+    }
+    else{
+
+        # Start low-throttle dwell timer
+        if(LowThrottleStart == 0){
+            LowThrottleStart = curtime()
+        }
+
+        # Only allow cycling after dwell time
+        if((curtime() - LowThrottleStart) >= DwellTime){
+
+            # Start cycle if needed
+            if(CycleStart == 0){
+                CycleStart = curtime()
+            }
+
+            CycleElapsed = curtime() - CycleStart
+
+            # Restart cycle cleanly
+            if(CycleElapsed >= CycleLength){
+                CycleStart = curtime()
+                CycleElapsed = 0
+            }
+
+            # ON window
+            AutoActive = (CycleElapsed <= OnTime)
+        }
+    }
+}
+
+
+# =========================
+# FINAL COCK STATE (OR LOGIC)
+# =========================
+CockActive = Active & (CocksOverride | AutoActive)
+
+# =========================
+# OUTPUT FOR PARTICLES
+# =========================
+ParticleOut = CockActive
+
+# =========================
+# EDGE DETECTION
+# =========================
+ValveRise = CockActive & !LastValve
+ValveFall = !CockActive & LastValve
+
+# =========================
+# SOUND CONTROL
+# =========================
+if(ValveRise){
+    soundStop(1)
+    soundStop(3)
+
+    soundPlay(0, 0, SoundOn)
+    H:soundPlay(2, 0, SoundOn)
+
+    soundVolume(0, Default_Volume)
+    soundVolume(2, Default_Volume)
+}
+
+if(ValveFall){
+    soundStop(0)
+    soundStop(2)
+
+    soundPlay(1, 1, SoundOff)
+    H:soundPlay(3, 1, SoundOff)
+
+    soundVolume(1, Default_Volume)
+    soundVolume(3, Default_Volume)
+}
+
+LastValve = CockActive
+
+# =========================
+# PITCH CONTROL
+# =========================
+for(N = 0, 3){
+    soundPitch(N, Pitch ? Pitch * 100 : Default_Pitch)
+}
