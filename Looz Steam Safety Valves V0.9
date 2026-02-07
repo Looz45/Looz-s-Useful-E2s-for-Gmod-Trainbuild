@@ -1,0 +1,128 @@
+@name Looz Steam Safety Valves V0.9
+@inputs Active PSI Throttle Pitch 
+@outputs ParticleOut SafetiesAF
+@persist RealisticMode
+@persist MaxPSI ResetPSI
+@persist FakeInterval FakeIntervalRand FakeDuration
+@persist NextFakeTime FakeEndTime
+@persist FakeActive ValveOpen LastValve
+@persist SoundOn:string SoundOff:string Default_Pitch Default_Volume H:entity
+@trigger
+@model models/gsgtrainprops/parts/horns/leslie_a200.mdl
+
+interval(200)
+
+# =========================
+# INITIAL CONFIG
+# =========================
+if(first() | dupefinished()){
+    RealisticMode = 0 # 1 = External/Realistic, 0 = Fake
+    # Realistic mode may not work as intended
+    
+    # PSI values kept for compatibility (unused in realistic mode)
+    MaxPSI = 200
+    ResetPSI = 185
+
+    # Fake mode timing
+    FakeInterval = 120
+    FakeIntervalRand = 30
+    FakeDuration = 6
+
+    SoundOn  = "steam/lner/v4/cylnder_cock_open.wav"
+    SoundOff = "steam/lner/v4/cylnder_cock_close.wav"
+    Default_Pitch = 100
+    Default_Volume = 77222270
+
+    ValveOpen = 0
+    FakeActive = 0
+    LastValve = 0
+    FakeEndTime = 0
+    NextFakeTime = curtime() + FakeInterval
+
+    entity():setAlpha(0)
+    H = holoCreate(0, entity():pos())
+    holoAlpha(0,0)
+    holoParent(0,entity())
+}
+
+# =========================
+# MASTER ENABLE
+# =========================
+if(!Active){
+    ValveOpen = 0
+    FakeActive = 0
+    FakeEndTime = 0
+}
+
+# =========================
+# REALISTIC MODE (EXTERNAL CONTROL)
+# =========================
+# Valve ONLY opens when SafetiesAF is high
+if(Active & RealisticMode){
+    ValveOpen = SafetiesAF ? 1 : 0
+    FakeActive = ValveOpen
+}
+
+# =========================
+# FAKE MODE (AUTONOMOUS)
+# =========================
+if(Active & !RealisticMode){
+
+    if(Throttle != 0){
+        FakeActive = 0
+        FakeEndTime = 0
+        NextFakeTime = curtime() + FakeInterval
+    }
+
+    if(Throttle == 0 & !FakeActive & curtime() >= NextFakeTime){
+        FakeActive = 1
+        FakeEndTime = curtime() + FakeDuration
+        NextFakeTime = curtime() + FakeInterval + random(-FakeIntervalRand, FakeIntervalRand)
+    }
+
+    if(FakeActive & curtime() >= FakeEndTime){
+        FakeActive = 0
+        FakeEndTime = 0
+    }
+}
+
+# =========================
+# OUTPUT FOR PARTICLES
+# =========================
+ParticleOut = FakeActive
+
+# =========================
+# EDGE DETECTION
+# =========================
+ValveRise = FakeActive & !LastValve
+ValveFall = !FakeActive & LastValve
+
+# =========================
+# SOUND CONTROL
+# =========================
+if(ValveRise){
+    soundStop(1)
+    soundStop(3)
+    soundPlay(0,0,SoundOn)
+    H:soundPlay(2,0,SoundOn)
+    soundVolume(0,Default_Volume)
+    soundVolume(2,Default_Volume)
+}
+
+if(ValveFall){
+    soundStop(0)
+    soundStop(2)
+    soundPlay(1,1,SoundOff)
+    H:soundPlay(3,1,SoundOff)
+    soundVolume(1,Default_Volume)
+    soundVolume(3,Default_Volume)
+}
+
+LastValve = FakeActive
+
+# =========================
+# PITCH CONTROL
+# =========================
+for(N=0,3){
+    soundPitch(N, Pitch ? Pitch*100 : Default_Pitch)
+}
