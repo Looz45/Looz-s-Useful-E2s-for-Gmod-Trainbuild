@@ -1,0 +1,247 @@
+@name Loozs Automatic Opening and Firing Firebox Door V1.9
+@inputs On Pitch DoorOpenManualMode
+@outputs DoorState
+@persist FireboxOpen NextEvent CloseTime SystemActive
+@persist LastFireboxOpen
+@persist Default_Pitch Default_Volume DoorState DoorMode
+@persist CoalingSound:string DoorOpeningSound:string DoorCloseSound:string FireSoundWhenOpen:string
+
+# Public E2 produced by Looz
+
+if (first() | dupefinished()) {
+    entity():setAlpha(0)
+    LastFireboxOpen = 0 # IGNORE
+
+    # -------------------------------------------------
+    # DOOR MODE
+    # DoorMode = 0 -> Automatic / Fake
+    # DoorMode = 1 -> Manual / Realistic
+    # -------------------------------------------------
+    DoorMode = 0   # CHANGE THIS: 0 for fake, 1 for realistic/manual firing
+
+    Default_Pitch  = 60
+    Default_Volume = 1
+
+    CoalingSound      = "moztrainsounds/steam/generic/coal_shoveling_loop.wav"
+    DoorOpeningSound  = "doors/default_stop.wav"
+    DoorCloseSound    = "doors/door_metal_thin_close2.wav"
+    FireSoundWhenOpen = "ambient/fire/fire_small_loop1.wav"
+
+    FireboxOpen  = 0
+    SystemActive = 1
+}
+
+FireboxA = vec(36)
+Grime    = "models/proppertextures/acrylic2_hw"
+Scale    = 1.0
+
+# -------------------------------------------------
+# SYSTEM ENABLE / DISABLE
+# -------------------------------------------------
+
+if (DoorMode == 0) {
+    if (On & !SystemActive) {
+        SystemActive = 1
+        FireboxOpen  = 0
+        NextEvent    = curtime() + random(0.1,0.2)
+    }
+
+    if (!On & SystemActive) {
+        SystemActive = 0
+        FireboxOpen  = 0
+
+        soundStop(1)
+        soundStop(3)
+    }
+}
+else {
+    # Manual mode always stays alive
+    SystemActive = 1
+}
+
+# -------------------------------------------------
+# AUTOMATIC MODE (ONLY)
+# -------------------------------------------------
+
+if (DoorMode == 0 & SystemActive & !FireboxOpen & curtime() >= NextEvent) {
+    FireboxOpen = 1
+    CloseTime   = curtime() + random(15,30)
+
+    soundPlay(1,0,CoalingSound)
+    soundPlay(2,0,DoorOpeningSound)
+    soundPlay(3,0,FireSoundWhenOpen)
+
+    soundVolume(1,Default_Volume)
+    soundVolume(2,Default_Volume)
+    soundVolume(3,Default_Volume)
+}
+
+if (DoorMode == 0 & FireboxOpen & curtime() >= CloseTime) {
+    FireboxOpen = 0
+    NextEvent   = curtime() + random(15,45)
+
+    soundStop(1)
+    soundStop(3)
+
+    soundPlay(4,0,DoorCloseSound)
+    soundVolume(4,Default_Volume)
+}
+
+soundPitch(1, ->Pitch ? Pitch*100 : Default_Pitch)
+soundPitch(3, ->Pitch ? Pitch*100 : Default_Pitch)
+
+# -------------------------------------------------
+# MANUAL MODE (AUTHORITATIVE, EDGE-TRIGGERED)
+# -------------------------------------------------
+
+if (DoorMode == 1) {
+
+    FireboxOpen = DoorOpenManualMode
+
+    # Door JUST opened
+    if (FireboxOpen & !LastFireboxOpen) {
+        soundPlay(2,0,DoorOpeningSound)
+        soundPlay(3,0,FireSoundWhenOpen)
+
+        soundVolume(2,Default_Volume)
+        soundVolume(3,Default_Volume)
+    }
+
+    # Door JUST closed
+    if (!FireboxOpen & LastFireboxOpen) {
+        soundStop(3)
+        soundPlay(4,0,DoorCloseSound)
+        soundVolume(4,Default_Volume)
+    }
+
+    LastFireboxOpen = FireboxOpen
+}
+
+
+# -------------------------------------------------
+# FIREBOX FLAPS (MOVING)
+# -------------------------------------------------
+
+if (FireboxOpen) {
+    DoorState = 1
+
+    A = 2
+    holoCreate(A)
+    holoParent(A, entity())
+    holoModel(A,"models/sprops/rectangles/size_2/rect_12x18x3.mdl")
+    holoMaterial(A,Grime)
+    holoPos(A,entity():toWorld(vec(0,13.5,1.5)))
+    holoColor(A,FireboxA)
+
+    A = 3
+    holoCreate(A)
+    holoParent(A, entity())
+    holoModel(A,"models/sprops/rectangles/size_2/rect_12x18x3.mdl")
+    holoMaterial(A,Grime)
+    holoPos(A,entity():toWorld(vec(0,-13.5,1.5)))
+    holoColor(A,FireboxA)
+
+    # HANDLE OPEN
+    A = 4
+    B = holoEntity(A)
+    holoCreate(A)
+    holoParent(A,entity())
+    holoAng(A,B:toWorld(ang(0,-65,90)))
+    holoModel(A,"models/props_bennjo/throttle_us_2.mdl")
+    holoMaterial(A,Grime)
+    holoPos(A,B:toWorld(vec(-12.5,4.5,-5)))
+    holoScale(A,vec(1,0.8,0.8))
+    holoColor(A,FireboxA)
+}
+else {
+    DoorState = 0
+
+    A = 2
+    holoCreate(A)
+    holoParent(A, entity())
+    holoModel(A,"models/sprops/rectangles/size_2/rect_12x18x3.mdl")
+    holoMaterial(A,Grime)
+    holoPos(A,entity():toWorld(vec(0,6.3,1.5)))
+    holoColor(A,FireboxA)
+
+    A = 3
+    holoCreate(A)
+    holoParent(A, entity())
+    holoModel(A,"models/sprops/rectangles/size_2/rect_12x18x3.mdl")
+    holoMaterial(A,Grime)
+    holoPos(A,entity():toWorld(vec(0,-6.3,1.5)))
+    holoColor(A,FireboxA)
+
+    # HANDLE CLOSED
+    A = 4
+    B = holoEntity(A)
+    holoCreate(A)
+    holoParent(A,entity())
+    holoAng(A,B:toWorld(ang(0,-105,90)))
+    holoModel(A,"models/props_bennjo/throttle_us_2.mdl")
+    holoMaterial(A,Grime)
+    holoPos(A,B:toWorld(vec(-5,4.5,2)))
+    holoScale(A,vec(1,0.8,0.8))
+    holoColor(A,FireboxA)
+}
+
+# -------------------------------------------------
+# FIREBOX DOOR FACE & FIRE
+# -------------------------------------------------
+
+Status  = "models/proppertextures/enamel_black"
+Status2 = On ? "chrisautism/animated/fire" : "models/proppertextures/invisible"
+
+A = 5
+holoCreate(A)
+holoParent(A, entity())
+holoAng(A, entity():toWorld(ang(0,90,90)))
+holoModel(A,"models/sprops/geometry/t_fdisc_18.mdl")
+holoPos(A, entity():toWorld(vec(0,0,-3)))
+holoScale(A, vec(1.2,1,0.8))
+holoMaterial(A, Status)
+
+A = 6
+holoCreate(A)
+holoParent(A, entity())
+holoModel(A,"models/holograms/plane.mdl")
+holoPos(A, entity():toWorld(vec(3.4,0,-1.2)))
+holoAng(A, entity():toWorld(ang(0,180,0)))
+holoScale(A, vec(2))
+holoMaterial(A, Status2)
+
+# -------------------------------------------------
+# STATIC DETAILS
+# -------------------------------------------------
+
+A = 7
+holoCreate(A)
+holoParent(A, entity())
+holoAng(A, entity():toWorld(ang(0,90,90)))
+holoModel(A,"models/sprops/rectangles_thin/size_1_5/rect_6x36x1_5.mdl")
+holoMaterial(A, Grime)
+holoPos(A, entity():toWorld(vec(9.5,0,0)))
+holoScale(A, vec(1.1))
+holoColor(A, FireboxA)
+
+A = 8
+holoCreate(A)
+holoParent(A, entity())
+holoAng(A, entity():toWorld(ang(0,90,90)))
+holoModel(A,"models/sprops/rectangles_thin/size_1_5/rect_6x36x1_5.mdl")
+holoMaterial(A, Grime)
+holoPos(A, entity():toWorld(vec(-9.5,0,0)))
+holoScale(A, vec(1.1))
+holoColor(A, FireboxA)
+
+A = 9
+holoCreate(A)
+holoParent(A, entity())
+holoAng(A, entity():toWorld(ang(0,90,90)))
+holoModel(A,"models/sprops/geometry/fring_24.mdl")
+holoMaterial(A, Grime)
+holoPos(A, entity():toWorld(vec(0,0,-3)))
+holoScale(A, vec(1.2,2,0.8))
+holoColor(A, FireboxA)
+
+interval(700)
