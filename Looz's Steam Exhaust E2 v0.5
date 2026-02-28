@@ -1,0 +1,151 @@
+@name Looz's Steam Exhaust E2 v0.5
+@inputs Active Throttle ShovellingSteam Speed
+@outputs ParticleOn Particle:string
+@persist PStages:array
+@persist Soot FireStress DecayRate LastThrottle
+@persist Color:string Thickness:string ThrottleStage
+@persist CoastActive CoastNextToggle CoastState
+@trigger none
+
+# --------------------------------
+# INIT
+# --------------------------------
+if (first() | dupefinished()) {
+
+    DecayRate = 15
+
+    PStages = array(
+        "clag_2stroke_1",   # Idle
+        "clag_2stroke_2",   # Throttle 1
+        "clag_2stroke_3",   # Throttle 2
+        "clag_2stroke_4",   # Throttle 3
+        "Gray_100_Thin",    # Throttle 4
+        "Gray_100_Thin",    # Throttle 5
+        "Gray_100_Medium",  # Throttle 6
+        "Gray_100_Medium",  # Throttle 7
+        "Gray_100_Thick",   # Throttle 8
+        "Black_100_Thick",  # Throttle 9
+        "Black_100_Thick"   # Throttle 10
+    )
+
+    Soot = 30
+    FireStress = 0
+    LastThrottle = 0
+
+    CoastActive = 0
+    CoastState = 0
+    CoastNextToggle = curtime()
+
+    Color = "White"
+    Thickness = "Thin"
+}
+
+ParticleOn = Active
+
+# --------------------------------
+# THROTTLE / FIRE STRESS
+# --------------------------------
+Throttle = clamp(Throttle, 0, 10)
+ThrottleStage = ceil(Throttle)
+
+ThrottleDelta = Throttle - LastThrottle
+LastThrottle = Throttle
+
+if (ThrottleDelta > 0.4) {
+    FireStress += ThrottleDelta * 20
+}
+
+FireStress -= 5
+FireStress = clamp(FireStress, 0, 100)
+
+# --------------------------------
+# SHOVELLING
+# --------------------------------
+if (ShovellingSteam) {
+    FireStress += 35
+    Soot += 25
+}
+
+# --------------------------------
+# SOOT LOGIC
+# --------------------------------
+interval(200)
+
+Soot -= DecayRate
+Soot += FireStress * 0.2
+Soot = clamp(Soot, 0, 100)
+
+# --------------------------------
+# COASTING DETECTION
+# --------------------------------
+CoastActive = (Active & Throttle <= 1 & Speed >= 10 & Speed <= 60)
+
+# Reset sequence when leaving coast
+if (!CoastActive) {
+    CoastState = 0
+    CoastNextToggle = curtime()
+}
+
+# --------------------------------
+# COASTING PUFF SEQUENCE
+# --------------------------------
+if (CoastActive) {
+
+    if (curtime() >= CoastNextToggle) {
+
+        CoastState = !CoastState
+
+        if (CoastState) {
+            CoastNextToggle = curtime() + 1.0   # ON
+        } else {
+            CoastNextToggle = curtime() + 1.5   # OFF
+        }
+    }
+}
+
+# --------------------------------
+# COLOUR (high power only)
+# --------------------------------
+Color = "White"
+
+if (Soot > 66) {
+    Color = "Black"
+} elseif (Soot > 33) {
+    Color = "Gray"
+}
+
+# --------------------------------
+# THICKNESS (high power only)
+# --------------------------------
+Thickness = "Thin"
+
+if (Throttle >= 9) {
+    Thickness = "Thick"
+} elseif (Throttle >= 7) {
+    Thickness = "Medium"
+}
+
+# --------------------------------
+# FINAL PARTICLE SELECTION
+# --------------------------------
+if (!Active) {
+
+    Particle = "White_100_Thin"
+
+} elseif (CoastActive) {
+
+    if (CoastState) {
+        Particle = "clag_2stroke_4"
+    } else {
+        Particle = ""
+    }
+
+} elseif (ThrottleStage <= 6) {
+
+    ThrottleStage = clamp(ThrottleStage, 1, PStages:count())
+    Particle = PStages[ThrottleStage, string]
+
+} else {
+
+    Particle = Color + "_100_" + Thickness
+}
