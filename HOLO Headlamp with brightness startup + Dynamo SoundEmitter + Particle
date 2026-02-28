@@ -1,0 +1,148 @@
+@name HOLO Headlamp with brightness startup + Dynamo SoundEmitter + Particle
+@inputs HeadlampOn DynamoActive
+@outputs HeadlampOutput BrightnessOutput DynamoParticles
+@persist LampStage LampTimer LastHeadlampOn
+@persist LampSound:string DynLoopSound:string DynEndSound:string
+@persist H:entity Default_Pitch Default_Volume
+@persist A Scale
+@trigger HeadlampOn DynamoActive
+@model models/sprops/cuboids/height06/size_2/cube_12x12x6.mdl
+
+# -------------------------
+# INIT
+# -------------------------
+if (first() | duped()) {
+    LampStage = 0
+    LampTimer = 0
+    LastHeadlampOn = 0
+
+    LampSound = "ambient/energy/zap1.wav"
+    DynLoopSound = "locnoisbygeordie/steam/misc/pyle_dynamo2_loop.wav"
+    DynEndSound  = "locnoisbygeordie/steam/misc/pyle_dynamo2_end.wav"
+
+    HeadlampOutput = 0
+    BrightnessOutput = 0
+    DynamoParticles = 0
+
+    Default_Pitch = 100
+    Default_Volume = 0.25
+
+    # --- Headlamp holo ---
+    A = 0
+    Scale = 1.6
+
+A++
+holoCreate(A)
+holoParent(A, entity())
+holoAng(A, entity():toWorld(ang(0,-90,0)) )
+holoModel(A, "models/zexciv_train_stuff/misc/lamps/lamp_2.mdl")
+holoEntity(A):setSubMaterial(6,"models/proppertextures/acrylic2_Hw")
+holoPos(A,entity():toWorld(vec(0,-0.5*Scale,0.65*Scale)))
+holoScale(A, vec(1*Scale))
+holoColor(A,vec(36) )
+
+
+A++
+holoCreate(A)
+holoParent(A, entity())
+holoAng(A, entity():toWorld(ang(0,-180,0)) )
+holoModel(A, "models/zexciv_train_stuff/misc/details/dynamo.mdl")
+holoMaterial(A,"models/proppertextures/acrylic2_Hw")
+holoPos(A,entity():toWorld(vec(36,45*Scale,-14*Scale)))
+holoScale(A, vec(0.6*Scale))
+holoColor(A,vec(36) )
+
+
+
+    H = holoCreate(0, entity():pos())
+    holoAlpha(0,0)
+    holoParent(0, entity())
+}
+
+# -------------------------
+# DYNAMO SOUND EMITTER REPLACEMENT
+# -------------------------
+if(DynamoActive & ~DynamoActive){
+    soundStop(1)
+    soundStop(3)
+    soundPlay(0,0,DynLoopSound)
+    H:soundPlay(2,0,DynLoopSound)
+    soundVolume(0,Default_Volume)
+    soundVolume(2,Default_Volume)
+}elseif(!DynamoActive & ~DynamoActive){
+    soundStop(0)
+    soundStop(2)
+    soundPlay(1,1,DynEndSound)
+    H:soundPlay(3,1,DynEndSound)
+    soundVolume(1,Default_Volume)
+    soundVolume(3,Default_Volume)
+}
+
+for(N=0,3){
+    soundPitch(N, 100)
+}
+
+# -------------------------
+# DYNAMO PARTICLE OUTPUT
+# -------------------------
+DynamoParticles = DynamoActive
+
+# -------------------------
+# HEADLAMP FLASH + BRIGHTNESS SEQUENCE
+# -------------------------
+# Rising edge detection for zap sound
+if (HeadlampOn & !LastHeadlampOn & DynamoActive) {
+    soundPlay(2, 0, LampSound)
+    soundVolume(2, 1)
+
+    LampStage = 0
+    LampTimer = curtime() + 0.5     # Stage 0 ON duration
+    HeadlampOutput = 1
+    BrightnessOutput = 8
+}
+
+LastHeadlampOn = HeadlampOn
+
+if (HeadlampOn & DynamoActive) {
+    if (LampStage == 0 & curtime() >= LampTimer) {
+        HeadlampOutput = 0
+        BrightnessOutput = 1
+        LampStage = 1
+        LampTimer = curtime() + 0.4
+    }
+    if (LampStage == 1 & curtime() >= LampTimer) {
+        HeadlampOutput = 1
+        BrightnessOutput = 4
+        LampStage = 2
+        LampTimer = curtime() + 0.3
+    }
+    if (LampStage == 2 & curtime() >= LampTimer) {
+        HeadlampOutput = 0
+        BrightnessOutput = 1
+        LampStage = 3
+        LampTimer = curtime() + 0.5
+    }
+    if (LampStage == 3 & curtime() >= LampTimer) {
+        HeadlampOutput = 1
+        BrightnessOutput = 8
+        LampStage = 4
+    }
+    if (LampStage == 4) {
+        HeadlampOutput = 1
+        BrightnessOutput = 8
+    }
+}
+
+# -------------------------
+# HEADLAMP OFF RESET
+# -------------------------
+if (!HeadlampOn | !DynamoActive) {
+    HeadlampOutput = 0
+    BrightnessOutput = 0
+    LampStage = 0
+}
+
+# -------------------------
+# INTERVAL FOR FLASH / FLUTTER TIMERS
+# -------------------------
+interval(90)
