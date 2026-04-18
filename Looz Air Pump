@@ -1,0 +1,104 @@
+@name Looz Air Pump
+@inputs Active Pitch
+@outputs ParticleOut
+@persist PumpInterval PumpIntervalRand PumpDuration
+@persist NextPumpTime PumpEndTime
+@persist PumpActive LastPump
+@persist SoundOn:string SoundOff:string Default_Pitch Default_Volume H:entity
+@trigger
+@model models/props_c17/FurnitureFridge001a.mdl
+
+interval(200)
+
+# =========================
+# INITIAL CONFIG
+# =========================
+if(first() | dupefinished()){
+    # Timer settings
+    PumpInterval = 100      # Base interval between air pump cycles (seconds)
+    PumpIntervalRand = 12   # Random +/- seconds to add to interval
+    PumpDuration = 17       # How long the pump runs each cycle
+
+    SoundOn  = "locnoisbygeordie/steam/misc/air_pump5_loop_slow.wav"
+    SoundOff = "locnoisbygeordie/steam/misc/air_pump5_end_slow.wav"
+    Default_Pitch = 100
+    Default_Volume = 77222270
+
+    PumpActive = 0
+    LastPump = 0
+    PumpEndTime = 0
+    NextPumpTime = curtime() + PumpInterval
+
+    entity():setAlpha(0)
+    H = holoCreate(0, entity():pos())
+    holoAlpha(0,0)
+    holoParent(0,entity())
+}
+
+# =========================
+# MASTER ENABLE
+# =========================
+if(!Active){
+    PumpActive = 0
+    PumpEndTime = 0
+    NextPumpTime = curtime() + PumpInterval
+}
+
+# =========================
+# PUMP LOGIC
+# =========================
+# Start pump if time reached
+if(Active & !PumpActive & curtime() >= NextPumpTime){
+    PumpActive = 1
+    PumpEndTime = curtime() + PumpDuration
+    NextPumpTime = curtime() + PumpInterval + random(-PumpIntervalRand, PumpIntervalRand)
+}
+
+# End pump after duration
+if(PumpActive & curtime() >= PumpEndTime){
+    PumpActive = 0
+    PumpEndTime = 0
+}
+
+# =========================
+# OUTPUT FOR PARTICLES
+# =========================
+ParticleOut = PumpActive
+
+# =========================
+# EDGE DETECTION (Pump Rise / Fall)
+# =========================
+PumpRise = PumpActive & !LastPump
+PumpFall = !PumpActive & LastPump
+
+# =========================
+# SOUND CONTROL
+# =========================
+# Start SoundOn when pump starts
+if(PumpRise){
+    soundStop(1)
+    soundStop(3)
+    soundPlay(0,0,SoundOn)     # looping pump sound
+    H:soundPlay(2,0,SoundOn)
+    soundVolume(0,Default_Volume)
+    soundVolume(2,Default_Volume)
+}
+
+# Stop SoundOn and play SoundOff when pump ends
+if(PumpFall){
+    soundStop(0)
+    soundStop(2)
+    soundPlay(1,1,SoundOff)   # SoundOff plays once
+    H:soundPlay(3,1,SoundOff)
+    soundVolume(1,Default_Volume)
+    soundVolume(3,Default_Volume)
+}
+
+LastPump = PumpActive
+
+# =========================
+# PITCH CONTROL
+# =========================
+for(N=0,3){
+    soundPitch(N, Pitch ? Pitch*100 : Default_Pitch)
+}
