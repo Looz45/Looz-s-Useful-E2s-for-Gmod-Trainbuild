@@ -1,0 +1,110 @@
+@name Looz Steam Water Pump
+@inputs Active Pitch
+@outputs ParticleOut
+@persist PumpInterval PumpIntervalRand PumpDuration
+@persist NextPumpTime PumpEndTime
+@persist PumpActive LastPump
+
+@persist NextStrokeTime StrokeInterval StrokeRand
+@persist ParticleEndTime
+
+@persist H:entity
+
+@trigger
+@model models/props_c17/FurnitureFridge001a.mdl
+
+interval(50)
+
+# =========================
+# INITIAL CONFIG
+# =========================
+if(first() | dupefinished()){
+    PumpInterval = 120
+    PumpIntervalRand = 6
+    PumpDuration = 30
+
+    StrokeInterval = 1
+    StrokeRand = 0.2
+
+    PumpActive = 0
+    LastPump = 0
+    PumpEndTime = 0
+    NextPumpTime = curtime()
+    NextStrokeTime = 0
+    ParticleEndTime = 0
+
+    entity():setAlpha(0)
+    H = holoCreate(0, entity():pos())
+    holoAlpha(0,0)
+    holoParent(0,entity())
+}
+
+# =========================
+# MASTER ENABLE
+# =========================
+if(!Active){
+    PumpActive = 0
+    PumpEndTime = 0
+    NextPumpTime = curtime() + PumpInterval
+}
+
+# =========================
+# PUMP LOGIC
+# =========================
+if(Active & !PumpActive & curtime() >= NextPumpTime){
+    PumpActive = 1
+    PumpEndTime = curtime() + PumpDuration
+    NextPumpTime = curtime() + PumpInterval + random(-PumpIntervalRand, PumpIntervalRand)
+
+    NextStrokeTime = curtime()
+}
+
+if(PumpActive & curtime() >= PumpEndTime){
+    PumpActive = 0
+    PumpEndTime = 0
+}
+
+# =========================
+# STROKE / CHUFF SYSTEM
+# =========================
+if(PumpActive & curtime() >= NextStrokeTime){
+
+    ChuffID = ceil(random(1,8))
+    SoundPath = "usa_locomotive_sounds_3/steam/cylindercocks/chuff/style1/cylinderdrainchuff" + ChuffID + ".wav"
+
+    soundPlay(0,0,SoundPath)
+    H:soundPlay(1,0,SoundPath)
+
+    soundVolume(0,1)
+    soundVolume(1,1)
+
+    #  PARTICLE SYNC (pulse per stroke)
+    ParticleEndTime = curtime() + 0.15   # short burst (~150ms)
+
+    NextStrokeTime = curtime() + StrokeInterval + random(-StrokeRand, StrokeRand)
+}
+
+# =========================
+# PARTICLE OUTPUT (PULSED)
+# =========================
+ParticleOut = (curtime() < ParticleEndTime)
+
+# =========================
+# EDGE DETECTION
+# =========================
+PumpRise = PumpActive & !LastPump
+PumpFall = !PumpActive & LastPump
+
+if(PumpFall){
+    soundStop(0)
+    soundStop(1)
+}
+
+LastPump = PumpActive
+
+# =========================
+# PITCH CONTROL
+# =========================
+for(N=0,1){
+    soundPitch(N, Pitch ? Pitch*100 : 100)
+}
