@@ -1,0 +1,247 @@
+@name Looz Dual Steam Locomotive Throttle
+@inputs Throttle
+@persist OldThrottle
+@model models/sprops/cuboids/height06/size_1/cube_6x6x6.mdl
+
+if(first() | duped())
+{
+
+    entity():setAlpha(0)
+    
+    
+    Main=vec(120,30,20)
+    Main2=vec(110)
+    Main3=vec(36)
+    Material="models/proppertextures/acrylic2_hw"
+    Material2="models/proppertextures/acrylic2_hw"  
+    Material3="models/proppertextures/potmetal"
+    Material4="models/proppertextures/plastic_eggshell_black"
+    Invisible="models/proppertextures/invisible"
+
+
+###### Ignore
+    ThrottleWidth=30
+    ThrottleWidthOffset=3
+    ThrottleWidthScale=1
+    
+###### Change this value    
+    TotalWidthScaleLTR=1.2
+    
+    Scale=1
+    
+    holoCreate(1)
+    holoParent(1, entity())
+    holoModel(1,"models/phantom_one/nathan_union_lever.mdl")
+    holoScale(1,vec(1*Scale))
+    holoPos(1,entity():toWorld(vec(0,0,ThrottleWidth*TotalWidthScaleLTR)*Scale))
+    holoAng(1,entity():toWorld(ang(90,0,90)))
+    holoEntity(1):setSubMaterial(1,Material3)
+    holoEntity(1):setSubMaterial(2,Material3)
+    holoEntity(1):setSubMaterial(3,Material)
+    holoEntity(1):setSubMaterial(4,Invisible)
+    holoColor(1,Main3)
+
+    holoCreate(2)
+    holoParent(2, entity())
+    holoModel(2,"models/phantom_one/nathan_union_lever.mdl")
+    holoScale(2,vec(1*Scale))
+    holoPos(2,entity():toWorld(vec(0,0,-ThrottleWidth*TotalWidthScaleLTR)*Scale))
+    holoAng(2,entity():toWorld(ang(90,0,90)))
+    holoEntity(2):setSubMaterial(1,Material3)
+    holoEntity(2):setSubMaterial(2,Material3)
+    holoEntity(2):setSubMaterial(3,Material)
+    holoEntity(2):setSubMaterial(4,Invisible)
+    holoColor(2,Main3)
+
+    holoCreate(3)
+    holoParent(3, entity())
+    holoModel(3,"models/sprops/cylinders/size_2/cylinder_3x66.mdl")
+    holoScale(3,vec(0.7,0.7,0.9*ThrottleWidthScale*TotalWidthScaleLTR)*Scale)  ################## You may have to tweak this scale #0,0,X < This value
+    holoPos(3,entity():toWorld(vec(0,0,0)))
+    holoAng(3,entity():toWorld(ang(0,0,0)))
+    holoMaterial(3,Material2)
+    holoColor(3,Main3)
+    
+ 
+
+  A=4
+holoCreate(A)
+holoModel(A,"models/toast/steam/steam_valve_body.mdl")
+holoScale(A,vec(1*Scale))
+holoPos(A,entity():toWorld(vec(0,0,0)))
+holoAng(A, entity():toWorld(ang(90,0,0)) )
+holoMaterial(A,Material)
+holoColor(A,Main3)
+holoParent(A, entity())   
+A=5
+holoCreate(A)
+holoModel(A,"models/props_bennjo/base_1c.mdl")
+holoScale(A,vec(0.7,1,0.7)*Scale)
+holoPos(A,entity():toWorld(vec(2,0,0)*Scale))
+holoAng(A, entity():toWorld(ang(0,-90,0)) )
+holoMaterial(A,Material)
+holoColor(A,Main3)
+holoParent(A, entity())    
+A=6
+holoCreate(A)
+holoModel(A,"models/props_bennjo/base_1a.mdl")
+holoScale(A,vec(0.95,5.1,0.95)*Scale)
+holoPos(A,entity():toWorld(vec(10,0,0)*Scale))
+holoAng(A, entity():toWorld(ang(0,90,0)) )
+holoMaterial(A,Material)
+holoColor(A,Main3)
+holoParent(A, entity())
+
+A=7
+    holoCreate(A)
+    holoParent(A, entity())
+    holoModel(A,"models/mechanics/articulating/arm_base_b.mdl")
+    holoScale(A,vec(0.1,0.23,0.2)*Scale)
+    holoPos(A,entity():toWorld(vec(0,5,+5-ThrottleWidth*TotalWidthScaleLTR)*Scale))
+    holoAng(A,entity():toWorld(ang(90,0,90)))
+    holoMaterial(A,Material2)
+    holoColor(A,Main3)
+
+A=8
+    holoCreate(A)
+    holoParent(A, entity())
+    holoModel(A,"models/props_combine/combinebracket003c.mdl")
+    holoScale(A,vec(1*Scale))
+    holoPos(A,entity():toWorld(vec(1,7,+6.5-ThrottleWidth*TotalWidthScaleLTR)*Scale))
+    holoAng(A,entity():toWorld(ang(0,0,90)))
+    holoMaterial(A,Material2)
+    holoColor(A,Main3)
+A=9
+    holoCreate(A)
+    holoParent(A, entity())
+    holoModel(A,"models/mechanics/articulating/arm_base_b.mdl")
+    holoScale(A,vec(0.1,0.23,0.2)*Scale)
+    holoPos(A,entity():toWorld(vec(0,5,-5+ThrottleWidth*TotalWidthScaleLTR)*Scale))
+    holoAng(A,entity():toWorld(ang(-90,0,90)))
+    holoMaterial(A,Material2)
+    holoColor(A,Main3)
+
+A=10
+    holoCreate(A)
+    holoParent(A, entity())
+    holoModel(A,"models/props_combine/combinebracket003c.mdl")
+    holoScale(A,vec(1*Scale))
+    holoPos(A,entity():toWorld(vec(1,7,-6.5+ThrottleWidth*TotalWidthScaleLTR)*Scale))
+    holoAng(A,entity():toWorld(ang(0,0,90)))
+    holoMaterial(A,Material2)
+    holoColor(A,Main3)
+
+
+A=11
+    holoCreate(A)
+    holoParent(A, 1)
+    holoModel(A,"models/props_phx/wheels/magnetic_small_base.mdl")
+    holoScale(A,vec(0.2,0.17,1.4)*Scale)
+    holoPos(A,entity():toWorld(vec(-0.3*TotalWidthScaleLTR,30,ThrottleWidth*TotalWidthScaleLTR)*Scale))
+    holoAng(A,entity():toWorld(ang(0,0,90)))
+    holoMaterial(A,Material4)
+    holoColor(A,Main2)
+
+
+
+A=12
+    holoCreate(A)
+    holoParent(A, 2)
+    holoModel(A,"models/props_phx/wheels/magnetic_small_base.mdl")
+    holoScale(A,vec(0.2,0.17,1.4)*Scale)
+    holoPos(A,entity():toWorld(vec(-0.3*TotalWidthScaleLTR,30,-ThrottleWidth*TotalWidthScaleLTR)*Scale))
+    holoAng(A,entity():toWorld(ang(0,0,90)))
+    holoMaterial(A,Material4)
+    holoColor(A,Main2)
+
+    
+A=13
+    holoCreate(A)
+    holoParent(A, entity())
+    holoModel(A,"models/props_metaladon/commissions/parts_bogie_flexicoil/adjuster.mdl")
+    holoScale(A,vec(0.9*Scale))
+    holoPos(A,entity():toWorld(vec(-8,3.7,-1.6+ThrottleWidth*TotalWidthScaleLTR)*Scale))
+    holoAng(A,entity():toWorld(ang(0,180-25,90)))
+    holoMaterial(A,Material2)
+    holoColor(A,Main3)
+A=14
+    holoCreate(A)
+    holoParent(A, entity())
+    holoModel(A,"models/sprops/cylinders/size_1/cylinder_1_5x3.mdl")
+    holoScale(A,vec(0.9*Scale))
+    holoPos(A,entity():toWorld(vec(-12.3,5.7,-2+ThrottleWidth*TotalWidthScaleLTR+1.15*TotalWidthScaleLTR)*Scale))
+    holoAng(A,entity():toWorld(ang(0,0,0)))
+    holoMaterial(A,Material2)
+    holoColor(A,Main3)
+
+A=15
+    holoCreate(A)
+    holoParent(A, entity())
+    holoModel(A,"models/props_metaladon/commissions/parts_bogie_flexicoil/adjuster.mdl")
+    holoScale(A,vec(0.9*Scale))
+    holoPos(A,entity():toWorld(vec(-8,3.7,+1.6-ThrottleWidth*TotalWidthScaleLTR)*Scale))
+    holoAng(A,entity():toWorld(ang(0,180-25,90)))
+    holoMaterial(A,Material2)
+    holoColor(A,Main3)
+A=16
+    holoCreate(A)
+    holoParent(A, entity())
+    holoModel(A,"models/sprops/cylinders/size_1/cylinder_1_5x3.mdl")
+    holoScale(A,vec(0.9*Scale))
+    holoPos(A,entity():toWorld(vec(-12.3,5.7,+2-ThrottleWidth*TotalWidthScaleLTR-1.15*TotalWidthScaleLTR)*Scale))
+    holoAng(A,entity():toWorld(ang(0,0,0)))
+    holoMaterial(A,Material2)
+    holoColor(A,Main3)
+    
+A=17
+    holoCreate(A)
+    holoParent(A, entity())
+    holoModel(A,"models/trakpak3_us/signals/generic/bracket_1_single.mdl")
+    holoScale(A,vec(0.5*Scale))
+    holoPos(A,entity():toWorld(vec(0,0,-1+ThrottleWidth*TotalWidthScaleLTR+1.15*TotalWidthScaleLTR)*Scale))
+    holoAng(A,entity():toWorld(ang(0,90,0)))
+    holoMaterial(A,Material2)
+    holoColor(A,Main3)
+        
+A=18
+    holoCreate(A)
+    holoParent(A, entity())
+    holoModel(A,"models/trakpak3_us/signals/generic/bracket_1_single.mdl")
+    holoScale(A,vec(0.5*Scale))
+    holoPos(A,entity():toWorld(vec(0,0,1-ThrottleWidth*TotalWidthScaleLTR-1.15*TotalWidthScaleLTR)*Scale))
+    holoAng(A,entity():toWorld(ang(0,90,180)))
+    holoMaterial(A,Material2)
+    holoColor(A,Main3)
+    
+   
+}
+
+interval(50)
+
+# Compute rotation
+A = Throttle * 4.5 + 10
+
+# Rotate throttle model (holo 3)
+holoAng(1, entity():toWorld(ang(0,A,90)))
+holoAng(2, entity():toWorld(ang(180,A,90)))
+holoAng(3, entity():toWorld(ang(0,A,0)))
+
+     if(Throttle & ~Throttle)
+    {
+        
+        soundPlay(1,0,"_jazzlok/switches/rotary_throttle02.wav") 
+        soundPitch(1,100)  
+		      }
+
+
+
+
+#[
+# Play sound when throttle changes
+if(Throttle != OldThrottle)
+{
+#    soundPlay(2,0,"_jazzlok/switches/big_relay02.wav")
+#    soundPitch(2,100)
+}
+
+
