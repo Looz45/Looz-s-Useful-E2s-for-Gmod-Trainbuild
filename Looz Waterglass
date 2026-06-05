@@ -1,0 +1,136 @@
+@name Looz Waterglass
+@inputs Water 
+@persist Mirror Scale
+
+if(first() | duped()){
+
+    entity():setAlpha(0)
+    Scale = 1
+    
+    Mirror = 0   # 0 = Left, 1 = Right
+    
+    A=1
+    holoCreate(A)
+    holoPos(A,entity():toWorld(vec(0,0,0)))
+    holoParent(A, entity())
+    holoModel(A, "models/anytrains/props/steam_waterglass_brass.mdl")
+    holoAng(A, entity():toWorld(ang(0,0,0)))
+    holoScale(A, vec(1,1,1)*Scale)
+    holoEntity(A):setSubMaterial(1,"models/proppertextures/brass_new")
+    holoEntity(A):setSubMaterial(4,"models/proppertextures/glass_new")
+    holoEntity(A):setBodygroup(1,1)
+
+    A=4
+    holoCreate(A)
+    holoPos(A,entity():toWorld(vec(0,0,1.5)*Scale))
+    holoParent(A, entity())
+    holoModel(A, "models/holograms/hq_cylinder.mdl")
+    holoAng(A, entity():toWorld(ang(0,0,0)))
+    holoScale(A, vec(0.04,0.04,0.25)*Scale)
+    holoColor(A,vec(162,179,188))
+    holoAlpha(A,120)
+    holoMaterial(A,"icegt/loco/ice_trainmetal_white")
+    holoClipEnabled(4,1)
+
+    A=5
+    holoCreate(A)
+    holoParent(A, entity())
+    holoModel(A, "models/toast/steam/steam_valve_body.mdl")
+    holoPos(A,entity():toWorld(vec(0,0,7.5*Scale)))
+    holoAng(A, entity():toWorld(ang(180,90,0)))
+    holoScale(A, vec(0.5*Scale))
+    holoMaterial(A,"models/proppertextures/brass_new")
+    holoColor(A, vec(127,111,67))
+
+    A=6
+    holoCreate(A)
+    holoParent(A, entity())
+    holoModel(A, "models/toast/steam/steam_valve_body.mdl")
+    holoPos(A,entity():toWorld(vec(0,0,-1.5*Scale)))
+    holoAng(A, entity():toWorld(ang(0,90,0)))
+    holoScale(A, vec(0.5*Scale))
+    holoMaterial(A,"models/proppertextures/brass_new")
+    holoColor(A, vec(127,111,67))
+
+    A=7
+    holoCreate(A)
+    holoParent(A, entity())
+    holoModel(A, "models/lazpack/stands/xm781_levers_new.mdl")
+    holoScale(A, vec(0.5*Scale))
+    holoMaterial(A,"models/proppertextures/brass_new")
+    holoColor(A, vec(127,111,67))
+
+    A=8
+    holoCreate(A)
+    holoParent(A, entity())
+    holoModel(A, "models/lazpack/stands/xm781_levers_new.mdl")
+    holoScale(A, vec(0.5*Scale))
+    holoMaterial(A,"models/proppertextures/brass_new")
+    holoColor(A, vec(127,111,67))
+
+
+    A=9
+    holoCreate(A)
+    holoParent(A, entity())
+    holoModel(A, "models/mechanics/solid_steel/sheetmetal_u_4.mdl")
+    holoPos(A,entity():toWorld(vec(-1,0,7.5*Scale)))
+    holoAng(A, entity():toWorld(ang(0,0,0)))
+    holoScale(A, vec(0.05,0.05,0.1)*Scale)
+    holoMaterial(A,"models/proppertextures/brass_new")
+    holoColor(A, vec(127,111,67))
+    A=10
+    holoCreate(A)
+    holoParent(A, entity())
+    holoModel(A, "models/mechanics/solid_steel/sheetmetal_u_4.mdl")
+    holoPos(A,entity():toWorld(vec(-1,0,-1.5*Scale)))
+    holoAng(A, entity():toWorld(ang(0,0,0)))
+    holoScale(A, vec(0.05,0.05,0.1)*Scale)
+    holoMaterial(A,"models/proppertextures/brass_new")
+    holoColor(A, vec(127,111,67))
+
+    A=11
+    holoCreate(A)
+    holoParent(A, entity())
+    holoModel(A, "models/sprops/cylinders/size_1/cylinder_1_5x6.mdl")
+    holoPos(A,entity():toWorld(vec(-3.5,0,7.5*Scale)))
+    holoAng(A, entity():toWorld(ang(90,0,0)))
+    holoScale(A, vec(0.5)*Scale)
+    holoMaterial(A,"models/proppertextures/brass_new")
+    holoColor(A, vec(127,111,67))
+    A=12
+    holoCreate(A)
+    holoParent(A, entity())
+    holoModel(A, "models/sprops/cylinders/size_1/cylinder_1_5x6.mdl")
+    holoPos(A,entity():toWorld(vec(-3.5,0,-1.5*Scale)))
+    holoAng(A, entity():toWorld(ang(90,0,0)))
+    holoScale(A, vec(0.5)*Scale)
+    holoMaterial(A,"models/proppertextures/brass_new")
+    holoColor(A, vec(127,111,67))
+
+
+
+# models/sprops/cylinders/size_1/cylinder_1_5x6.mdl
+
+
+if(Mirror){
+
+    # Right side
+    holoPos(7, entity():toWorld(vec(0,2,7.5)*Scale))
+    holoAng(7, entity():toWorld(ang(0,180,90)))
+
+    holoPos(8, entity():toWorld(vec(0,2,-1.5)*Scale))
+    holoAng(8, entity():toWorld(ang(0,180,90)))
+
+}else{
+
+    # Left side
+    holoPos(7, entity():toWorld(vec(0,-2,7.5)*Scale))
+    holoAng(7, entity():toWorld(ang(180,0,90)))
+
+    holoPos(8, entity():toWorld(vec(0,-2,-1.5)*Scale))
+    holoAng(8, entity():toWorld(ang(180,0,90)))
+}
+}
+
+Wh = Water * 0.05 - 2.5
+holoClip(4, vec(0,0,Wh), vec(0,0,-1), 0)
