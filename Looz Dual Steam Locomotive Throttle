@@ -3,6 +3,9 @@
 @persist OldThrottle
 @model models/sprops/cuboids/height06/size_1/cube_6x6x6.mdl
 
+# Req "https://steamcommunity.com/sharedfiles/filedetails/?id=310835919"
+
+
 if(first() | duped())
 {
 
@@ -102,7 +105,7 @@ A=7
     holoMaterial(A,Material2)
     holoColor(A,Main3)
 
-A=8
+A=8                                                               # If errors, this is why, req "https://steamcommunity.com/sharedfiles/filedetails/?id=310835919"
     holoCreate(A)
     holoParent(A, entity())
     holoModel(A,"models/props_combine/combinebracket003c.mdl")
@@ -121,7 +124,7 @@ A=9
     holoMaterial(A,Material2)
     holoColor(A,Main3)
 
-A=10
+A=10                                                               # If errors, this is why, req "https://steamcommunity.com/sharedfiles/filedetails/?id=310835919"
     holoCreate(A)
     holoParent(A, entity())
     holoModel(A,"models/props_combine/combinebracket003c.mdl")
