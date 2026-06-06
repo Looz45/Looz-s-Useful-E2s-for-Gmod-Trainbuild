@@ -1,10 +1,7 @@
-@name Looz Dual Steam Locomotive Throttle
+@name Looz Dual Steam Locomotive Throttle / Regulator
 @inputs Throttle
 @persist OldThrottle
 @model models/sprops/cuboids/height06/size_1/cube_6x6x6.mdl
-
-# Req "https://steamcommunity.com/sharedfiles/filedetails/?id=310835919"
-
 
 if(first() | duped())
 {
@@ -28,7 +25,7 @@ if(first() | duped())
     ThrottleWidthScale=1
     
 ###### Change this value    
-    TotalWidthScaleLTR=1.2
+    TotalWidthScaleLTR=1.35
     
     Scale=1
     
@@ -105,13 +102,13 @@ A=7
     holoMaterial(A,Material2)
     holoColor(A,Main3)
 
-A=8                                                               # If errors, this is why, req "https://steamcommunity.com/sharedfiles/filedetails/?id=310835919"
+A=8
     holoCreate(A)
     holoParent(A, entity())
-    holoModel(A,"models/props_combine/combinebracket003c.mdl")
-    holoScale(A,vec(1*Scale))
-    holoPos(A,entity():toWorld(vec(1,7,+6.5-ThrottleWidth*TotalWidthScaleLTR)*Scale))
-    holoAng(A,entity():toWorld(ang(0,0,90)))
+    holoModel(A,"models/mechanics/solid_steel/crossbeam_4.mdl")
+    holoScale(A,vec(0.3*Scale))
+    holoPos(A,entity():toWorld(vec(7.5,7,+6.5-ThrottleWidth*TotalWidthScaleLTR)*Scale))
+    holoAng(A,entity():toWorld(ang(-45,0,90)))
     holoMaterial(A,Material2)
     holoColor(A,Main3)
 A=9
@@ -124,13 +121,13 @@ A=9
     holoMaterial(A,Material2)
     holoColor(A,Main3)
 
-A=10                                                               # If errors, this is why, req "https://steamcommunity.com/sharedfiles/filedetails/?id=310835919"
+A=10
     holoCreate(A)
     holoParent(A, entity())
-    holoModel(A,"models/props_combine/combinebracket003c.mdl")
-    holoScale(A,vec(1*Scale))
-    holoPos(A,entity():toWorld(vec(1,7,-6.5+ThrottleWidth*TotalWidthScaleLTR)*Scale))
-    holoAng(A,entity():toWorld(ang(0,0,90)))
+    holoModel(A,"models/mechanics/solid_steel/crossbeam_4.mdl")
+    holoScale(A,vec(0.3*Scale))
+    holoPos(A,entity():toWorld(vec(7.5,7,-6.5+ThrottleWidth*TotalWidthScaleLTR)*Scale))
+    holoAng(A,entity():toWorld(ang(-45,0,90)))
     holoMaterial(A,Material2)
     holoColor(A,Main3)
 
