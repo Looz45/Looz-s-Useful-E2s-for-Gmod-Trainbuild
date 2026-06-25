@@ -1,4 +1,4 @@
-@name Loozs Diesel Mechanical Control E2 V2.54 (Early Access)
+@name Loozs Diesel Mechanical Control E2 V2.62 (Early Access) 
 @inputs Active W S A D Space ClutchInput TrainBrake IndepBrake HandBrake Throttle_OVR Repair EnginePitchInput
 @outputs MPH KPH V Throttle NegativeThrottle OPS Gear RPM Clutch GearboxBroken EngineBroken EngineTemp MaxGear
 @persist MaxSpeed Mul BrakeScale HandBrakeScale EnginePitch
@@ -9,9 +9,14 @@
 @persist GearboxFirePlaying EngineBroken EngineRedlineTimer EngineTempVal NextTempWarning
 @persist ChatIndepBrake ChatTrainBrake ChatHandBrake
 @persist ClutchHoldTimer ClutchDamageCounter ClutchBroken CanShift
-@persist ClutchWear ClutchBroken ClutchWearTimer MaxHLowGearStall MaxLHighGearStall
+@persist ClutchWear  ClutchWearTimer MaxHLowGearStall MaxLHighGearStall
 @persist PrevGear PrevEngineStalled LOWGEARSTALL HIGHGEARSTALL
 @persist Notch1TargetRPM Notch2TargetRPM Notch3TargetRPM Notch4TargetRPM Notch5TargetRPM Notch6TargetRPM Notch7TargetRPM Notch8TargetRPM
+@persist ShiftLockUntil ShiftDelay ClutchSlip DriveMul
+@persist WheelTargetRPM GearSpeedFrac
+@persist RollingStartArmed HardStallEnd HardStallPlaying EngineStalled
+@persist ClutchSlipWarned ClutchSlipOut GearRecoverEnd GearRecoverActive
+@persist NextClutchSlipCheck ClutchSlippedGear
 @trigger
 @model models/beer/wiremod/watersensor.mdl
 #
@@ -22,13 +27,13 @@
 # This chip is designed to work with my startup, clag and control e2s. Which will be inside my Github
 # 
 #
-# This is Version 2.54 (Early access, some bugs may be present)
+# This is Version 2.62 (Early access, some bugs may be present)
 # Created by #Looz45 (discord) and with the help of chatgpt, feel free to contact me if you have any questions.
 # 
 #
 # Known issues; 
-# When repairing the clutch and restarting the engine it will still say the clutch is broken when it isn't.
-# When braking with chat commands it will say the brake is released when it isnt. 
+# to be discovered
+# 
 #
 #
 # CHAT COMMANDS: (.throttle [-10 - + 10]) e.g .throttle 5 or .throttle -5. (.gear 1-6) (.brake 1[1 = indepentant, 2 = trainbrake, 3=handbrake] 1-0 = on or off) E.g .brake 1 1 = indepenant brake on >
@@ -43,17 +48,17 @@
 #
 #
 # ----------------- LOCAL SOUNDS -----------------
-local Diesel_Sound = "kei/trains/engines/napier_d18-25/idle.wav"
-local Notch1_Sound = "kei/trains/engines/napier_d18-25/notch1.wav"
-local Notch2_Sound = "kei/trains/engines/napier_d18-25/notch2.wav"
-local Notch3_Sound = "kei/trains/engines/napier_d18-25/notch3.wav"
-local Notch4_Sound = "kei/trains/engines/napier_d18-25/notch4.wav"
-local Notch5_Sound = "kei/trains/engines/napier_d18-25/notch5.wav"
-local Notch6_Sound = "kei/trains/engines/napier_d18-25/notch6.wav"
-local Notch7_Sound = "kei/trains/engines/napier_d18-25/notch7.wav"
-local Notch8_Sound = "kei/trains/engines/napier_d18-25/notch8.wav"
-local EngineStall_Sound = "kei/trains/engines/napier_d18-25/shutdown.wav" # Shutdown sound of your engine
-
+local Diesel_Sound = "kei/trains/engines/ee_6kt/idle.wav"
+local Notch1_Sound = "kei/trains/engines/ee_6kt/notch1.wav"
+local Notch2_Sound = "kei/trains/engines/ee_6kt/notch2.wav"
+local Notch3_Sound = "kei/trains/engines/ee_6kt/notch3.wav"
+local Notch4_Sound = "kei/trains/engines/ee_6kt/notch4.wav"
+local Notch5_Sound = "kei/trains/engines/ee_6kt/notch5.wav"
+local Notch6_Sound = "kei/trains/engines/ee_6kt/notch6.wav"
+local Notch7_Sound = "kei/trains/engines/ee_6kt/notch7.wav"
+local Notch8_Sound = "kei/trains/engines/ee_6kt/notch8.wav"
+local EngineStall_Sound = "kei/trains/engines/ee_6kt/shutdown.wav" # Shutdown sound of your engine
+local HardStall_Sound = "physics/metal/metal_box_impact_hard3.wav"
 # Ignore
 local Notch1_Rev_Sound = Notch1_Sound
 local Notch2_Rev_Sound = Notch2_Sound
@@ -86,12 +91,16 @@ if(first() | dupefinished()){
 # ----------------- CONFIG -----------------
     EnginePitch = 0
     
+    
+        EnginePitch = 0
+    
     BrakeScale = 30.0 #Controls how strong the independant and train brake are.
     HandBrakeScale = 16 #Strength of the handbrake
     
 
     ClutchWearSpeed = 4 # How fast your clutch wears out. 1 is a good value
-    MaxGear = 7 #How many gears (if you change this you will have to change your gearing)  --- Updated V2.54 > Wire this to your LR Controls V2.1 E2 (changes how many gears it can choose)
+    MaxGear = 6 #How many gears (if you change this you will have to change your gearing)
+    
     
     MaxHLowGearStall = 3 # This picks the upper limit of which gear stalls at LOWGEARSTALL --- Added V2.54
     MaxLHighGearStall = 4 # This picks the lower limit of which gear stalls at HIGHGEARSTALL --- Added V2.54
@@ -105,31 +114,44 @@ if(first() | dupefinished()){
     GearBroken = 0 #ignore
     GearDamageCounter = 0 #ignore
     
-  
+    ShiftDelay = 0.45
+    ShiftLockUntil = 0
+
+    ClutchSlip = 1
+    DriveMul = 0
+
+    RollingStartArmed = 0
+    HardStallEnd = 0
+    HardStallPlaying = 0
+    EngineStalled = 0
+    
+    ClutchSlipWarned = 0
+    ClutchSlipOut = 0
+    GearRecoverEnd = 0
+    GearRecoverActive = 0
+    NextClutchSlipCheck = 0
+    ClutchSlippedGear = 0
 # ----------------- GEARING -----------------  
     
 # If you add or remove a gear you will have to modify these values here;
 
-    GearMul[1,number] = 1800
-    GearSpd[1,number] = 230
+    GearMul[1,number] = 800
+    GearSpd[1,number] = 100
     
-    GearMul[2,number] = 1600
-    GearSpd[2,number] = 200
+    GearMul[2,number] = 525
+    GearSpd[2,number] = 180
     
-    GearMul[3,number] = 1400
-    GearSpd[3,number] = 440
+    GearMul[3,number] = 300
+    GearSpd[3,number] = 340
     
-    GearMul[4,number] = 1000
-    GearSpd[4,number] = 775
+    GearMul[4,number] = 200
+    GearSpd[4,number] = 475
     
-    GearMul[5,number] = 700
-    GearSpd[5,number] = 1400
+    GearMul[5,number] = 170
+    GearSpd[5,number] = 870
     
-    GearMul[6,number] = 650
-    GearSpd[6,number] = 1900
-    
-    GearMul[7,number] = 550
-    GearSpd[7,number] = 2400
+    GearMul[6,number] = 150
+    GearSpd[6,number] = 1600
 
     Mul = GearMul[Gear,number]
     MaxSpeed = GearSpd[Gear,number]
@@ -217,25 +239,33 @@ if(chatClk(O) & !->Throttle_OVR){
     Sentence = O:lastSaid():explode(" ")
     CMD = Sentence[1,string]
 
-    # ---- REPAIR ----
+      # ---- REPAIR ----
     if(CMD == ".repair"){
-        # Apply repair immediately
         GearBroken = 0
         GearDamageCounter = 0
         EngineBroken = 0
+        EngineStalled = 0
+        RollingStartArmed = 0
         EngineRedlineTimer = 0
         EngineTempVal = 20
         NextTempWarning = 100
-        
-        
-ClutchBroken = 0
-ClutchDamageCounter = 0
-ClutchHoldTimer = 0
-soundStop(4) # stop clutch wear/break sound
+ClutchSlipWarned = 0
+NextClutchSlipCheck = 0
+        ClutchBroken = 0
+        ClutchDamageCounter = 0
+        ClutchHoldTimer = 0
+        ClutchWear = 0
+        ClutchWearTimer = 0
+ClutchSlipOut = 0
+GearRecoverActive = 0
+GearRecoverEnd = 0
+ClutchSlippedGear = 0
+        CurrentNotch = -99
 
-        # Stop fire / damage sounds
-        soundStop(2) # Gearbox fire
-        soundStop(5) # Engine fire
+        soundStop(0) # engine loop
+        soundStop(2) # gearbox fire
+        soundStop(4) # clutch sound
+        soundStop(5) # engine fire
 
         GearboxFirePlaying = 0
 
@@ -253,9 +283,15 @@ soundStop(4) # stop clutch wear/break sound
 
     # ---- GEAR ----
     elseif(CMD == ".gear"){
-        Gear = clamp(Sentence[2,string]:toNumber(), 1, MaxGear)
-        Mul = GearMul[Gear,number]
-        MaxSpeed = GearSpd[Gear,number]
+       Gear = clamp(Sentence[2,string]:toNumber(), 0, MaxGear)
+
+if(Gear == 0){
+    Mul = 0
+    MaxSpeed = 0
+}else{
+    Mul = GearMul[Gear,number]
+    MaxSpeed = GearSpd[Gear,number]
+}
         hideChat(1)
         print("Chat: Gear set to "+Gear:toString())
     }
@@ -296,12 +332,27 @@ elseif(CMD == ".brake"){
     # ---- RESTART ----
     elseif(CMD == ".restart"){
         hideChat(1)
-        if(EngineBroken){
+        if(EngineBroken | EngineStalled){
             EngineBroken = 0
             EngineRedlineTimer = 0
             EngineTempVal = 20
-            Mul = GearMul[Gear,number]
-            MaxSpeed = GearSpd[Gear,number]
+          if(Gear == 0){
+    Mul = 0
+    MaxSpeed = 0
+}else{
+    Mul = GearMul[Gear,number]
+    MaxSpeed = GearSpd[Gear,number]
+}
+            
+            ClutchSlipOut = 0
+GearRecoverActive = 0
+GearRecoverEnd = 0
+            
+            EngineStalled = 0
+RollingStartArmed = 0
+CurrentNotch = -99
+soundStop(0)
+
             soundStop(5)
             soundStop(4)
             print("Chat: Engine restarted")
@@ -328,12 +379,23 @@ if(Repair){
     EngineRedlineTimer = 0
     EngineTempVal = 20
     NextTempWarning = 100
-    
+    ClutchSlipWarned = 0
+NextClutchSlipCheck = 0
     ClutchBroken = 0
 ClutchDamageCounter = 0
 ClutchHoldTimer = 0
+ClutchWear = 0
+ClutchWearTimer = 0
+ClutchBroken = 0
+ClutchDamageCounter = 0
+ClutchHoldTimer = 0
 
-    
+    CurrentNotch = -99
+    ClutchSlipOut = 0
+GearRecoverActive = 0
+GearRecoverEnd = 0
+ClutchSlippedGear = 0
+soundStop(0)
 
     # STOP FIRE / DAMAGE SOUNDS
     soundStop(2) # Gearbox fire
@@ -360,9 +422,15 @@ if(ClutchInput & !ClutchBroken){
     }
 } else {
     Clutch = 0
+
     if(GearBroken){
         Mul = 0
         MaxSpeed = 0
+
+    } elseif(Gear == 0){
+        Mul = 0
+        MaxSpeed = 0
+
     } else {
         Mul = GearMul[Gear,number]
         MaxSpeed = GearSpd[Gear,number]
@@ -374,24 +442,31 @@ if(ClutchInput & !ClutchBroken){
 }
 PrevClutchState = ClutchInput
 
-  
-# ----------------- SHIFT PERMISSION -----------------
-CanShift = (ClutchInput & !ClutchBroken)
+  if(ClutchInput | ClutchBroken){
+    ClutchSlip += (0 - ClutchSlip) * 0.25
+} else {
+    ClutchSlip += (1 - ClutchSlip) * 0.08
+}
 
+ClutchSlip = clamp(ClutchSlip, 0, 1)
+# ----------------- SHIFT PERMISSION -----------------
+#CanShift = (ClutchInput & !ClutchBroken)
+CanShift = (curtime() >= ShiftLockUntil)
 
 
 # ----------------- GEARBOX -----------------
 if(!GearBroken){
 
-
     # DOWN SHIFT INPUT
-    if(A & !PrevA){
+    if(A & !PrevA & CanShift){
+        ShiftLockUntil = curtime() + ShiftDelay
+
         OldGear = Gear
-        Gear = clamp(Gear-1,1,MaxGear)
+        Gear = clamp(Gear - 1, 0, MaxGear) # 0 = Neutral
 
         # ----------------- HARSH DOWNSHIFT DAMAGE -----------------
         if(MPH >= 25){
-            if(OldGear >= 4 & Gear <= 3){
+            if(OldGear >= 4 & Gear <= 3 & Gear > 0){
                 GearBroken = 1
                 print("GEARBOX FAILURE! Harsh downshift at "+MPH:toString()+" MPH")
                 soundPlay(1,0,GearBreak_Sound)
@@ -400,7 +475,11 @@ if(!GearBroken){
 
         # Print current gear
         if(Gear != OldGear){
-            print("Current Gear: "+OldGear+" -> "+Gear)
+            if(Gear == 0){
+                print("Current Gear: "+OldGear+" -> Neutral")
+            } else {
+                print("Current Gear: "+OldGear+" -> "+Gear)
+            }
         }
 
         # ----------------- SHIFT DAMAGE LOGIC -----------------
@@ -408,13 +487,13 @@ if(!GearBroken){
         # Broken clutch (no isolation)
         if(ClutchBroken){
             GearDamageCounter += 1
-            print("GEAR DAMAGE ("+GearDamageCounter+"/3)")
+            print("GEAR DAMAGE ("+GearDamageCounter+"/7)")
             soundPlay(1,0,GearCrunch_Sound)
 
         # Worn clutch = hard shift
         }elseif(ClutchWear >= 3 & !ClutchInput){
             GearDamageCounter += 1
-            print("HARD SHIFT - CLUTCH WORN ("+GearDamageCounter+"/3)")
+            print("HARD SHIFT - CLUTCH WORN ("+GearDamageCounter+"/7)")
             soundPlay(1,0,GearCrunch_Sound)
 
         # Normal clutch use
@@ -424,15 +503,17 @@ if(!GearBroken){
         # No clutch input at all
         }else{
             GearDamageCounter += 1
-            print("GEAR DAMAGE ("+GearDamageCounter+"/3)")
+            print("GEAR DAMAGE ("+GearDamageCounter+"/7)")
             soundPlay(1,0,GearCrunch_Sound)
         }
     }
 
     # UP SHIFT INPUT
-    if(D & !PrevD){
+   # if(D & !PrevD){
+    if(D & !PrevD & CanShift){
+    ShiftLockUntil = curtime() + ShiftDelay
         OldGear = Gear
-        Gear = clamp(Gear+1,1,MaxGear)
+        Gear = clamp(Gear + 1,0,MaxGear)
 
         if(Gear != OldGear){
             print("Current Gear: "+OldGear+" -> "+Gear)
@@ -442,12 +523,12 @@ if(!GearBroken){
 
         if(ClutchBroken){
             GearDamageCounter += 1
-            print("GEAR DAMAGE ("+GearDamageCounter+"/3)")
+            print("GEAR DAMAGE ("+GearDamageCounter+"/7)")
             soundPlay(1,0,GearCrunch_Sound)
 
         }elseif(ClutchWear >= 3 & !ClutchInput){
             GearDamageCounter += 1
-            print("HARD SHIFT - CLUTCH WORN ("+GearDamageCounter+"/3)")
+            print("HARD SHIFT - CLUTCH WORN ("+GearDamageCounter+"/7)")
             soundPlay(1,0,GearCrunch_Sound)
 
         }elseif(ClutchInput){
@@ -455,13 +536,13 @@ if(!GearBroken){
 
         }else{
             GearDamageCounter += 1
-            print("GEAR DAMAGE ("+GearDamageCounter+"/3)")
+            print("GEAR DAMAGE ("+GearDamageCounter+"/7)")
             soundPlay(1,0,GearCrunch_Sound)
         }
     }
 
     # ----------------- TOTAL DAMAGE CHECK -----------------
-    if(GearDamageCounter > 3){
+    if(GearDamageCounter > 7){
         GearBroken = 1
         print("GEARBOX FAILURE")
         soundPlay(1,0,GearBreak_Sound)
@@ -509,24 +590,84 @@ if(!ClutchBroken){
             ClutchWear += 1
             ClutchWearTimer = 0
 
-            if(ClutchWear <= 3){
-                print("Clutch wear "+ClutchWear+"/3")
-            }
+if(ClutchWear <= 10){
+    print("Clutch wear "+ClutchWear+"/10")
+}
         }
     } else {
         ClutchWearTimer = 0
     }
 
-    # Break clutch when exceeded
-    if(ClutchWear > 3){
-        ClutchBroken = 1
-        print("Clutch Broken, you wore it out")
-        soundPlay(2,0,Clutch_Sound)
-    }
+# Break clutch when exceeded
+if(ClutchWear >= 9){
+    ClutchBroken = 1
+    GearRecoverActive = 0
+    ClutchSlipOut = 0
+    print("Clutch worn out, you cannot use it")
+    soundPlay(2,0,Clutch_Sound)
+}
 }
 
 
+# ----------------- CLUTCH SLIP WARNING 4-6 -----------------
+if(ClutchWear >= 4 & ClutchWear <= 6 & !ClutchSlipWarned){
+    print("Your clutch is wearing bad, and it is slipping")
+    ClutchSlipWarned = 1
+}
 
+if(ClutchWear >= 4 & ClutchWear <= 6 & !ClutchInput){
+    ClutchSlip = min(ClutchSlip, 1 - ((ClutchWear - 3) * 0.1))
+}
+
+if(ClutchWear < 4){
+    ClutchSlipWarned = 0
+}
+# ----------------- CLUTCH SLIPS OUT OF GEAR 7-8 -----------------
+if(ClutchWear >= 7 & ClutchWear <= 8 & !GearRecoverActive & !ClutchSlipOut){
+    if(MPH > 8 & Gear > 2 & curtime() >= NextClutchSlipCheck){
+        NextClutchSlipCheck = curtime() + random(4,12)
+
+        if(random(0,100) < 12){
+            ClutchSlippedGear = Gear
+            ClutchSlipOut = 1
+            GearRecoverActive = 1
+            GearRecoverEnd = curtime() + 6
+
+            Gear = 0
+            Mul = 0
+            MaxSpeed = 0
+
+            print("CLUTCH SLIPPED OUT OF GEAR!")
+            soundPlay(1,0,GearCrunch_Sound)
+        }
+    }
+}
+# ----------------- GEAR RECOVERY TIMER -----------------
+if(GearRecoverActive){
+
+    #if(Gear > 0 & Gear != ClutchSlippedGear)
+    if(Gear == ClutchSlippedGear){
+        GearRecoverActive = 0
+        ClutchSlipOut = 0
+        print("Gear recovered")
+    }
+
+    if(curtime() >= GearRecoverEnd){
+        GearRecoverActive = 0
+        ClutchSlipOut = 0
+
+        if(random(0,100) < 50){
+            GearDamageCounter += 1
+            print("GEAR DAMAGE FROM CLUTCH SLIP ("+GearDamageCounter+"/7)")
+            soundPlay(1,0,GearCrunch_Sound)
+        } else {
+            Gear = max(ClutchSlippedGear - 1, 1)
+            Mul = GearMul[Gear,number]
+            MaxSpeed = GearSpd[Gear,number]
+            print("CLUTCH SLIP FORCED DOWNSHIFT TO GEAR "+Gear:toString())
+        }
+    }
+}
     # ----------------- NOTCH -----------------
     if(Throttle > 0){ Notch = ceil(Throttle/10*8) }
     elseif(Throttle < 0){ Notch = -ceil(abs(Throttle)/10*8) }
@@ -542,6 +683,15 @@ if(!ClutchBroken){
     elseif(Notch==6 | Notch==-6){ TargetRPM=Notch6TargetRPM } 
     elseif(Notch==7 | Notch==-7){ TargetRPM=Notch7TargetRPM } 
     elseif(Notch==8 | Notch==-8){ TargetRPM=Notch8TargetRPM }
+
+    if(!ClutchInput & !ClutchBroken & !EngineStalled){
+    GearSpeedFrac = clamp(abs(V) / max(MaxSpeed, 1), 0, 1)
+    WheelTargetRPM = EngineMin + GearSpeedFrac * (EngineMax - EngineMin)
+
+    if(WheelTargetRPM > TargetRPM){
+        TargetRPM = WheelTargetRPM
+    }
+}
 
     # ----------------- SMOOTH RPM -----------------
     RPM += (TargetRPM-RPM)*0.2
@@ -564,7 +714,11 @@ if(EngineRedlineTimer > 0){
 }
   else {
         # NORMAL THERMAL BEHAVIOUR (SLOW)
-        TargetTemp = 20 + LoadFactor * 80   # 20  100
+       # TargetTemp = 20 + LoadFactor * 80   # 20  100
+
+AirflowCooling = clamp(MPH / 40, 0, 1) * 35
+TargetTemp = 20 + LoadFactor * 95 - AirflowCooling
+TargetTemp = clamp(TargetTemp, 20, 120)
 
         if(TargetTemp > EngineTempVal){
             # Heating up (slow)
@@ -592,8 +746,13 @@ if(EngineTempVal >= NextTempWarning){
 }
 
 
-    # ----------------- ENGINE SOUND -----------------
-    if(!EngineBroken){
+# ----------------- ENGINE SOUND -----------------
+if(!EngineBroken & (!EngineStalled | ClutchInput)){
+
+    if(EngineStalled & ClutchInput){
+        RPM += (EngineMin - RPM) * 0.2
+    }
+
         if(Notch != CurrentNotch | (Notch==0 & !soundPlaying(0))){
             if(Notch == 0){ soundPlay(0,0,Diesel_Sound) }
             elseif(Notch > 0){
@@ -635,7 +794,8 @@ if(EngineTempVal >= NextTempWarning){
     }
 
     # ----------------- ENGINE BREAK LOGIC -----------------
-    if(!EngineBroken){
+    #if(!EngineBroken){
+        if(!EngineBroken & !EngineStalled){
         if(RPM >= EngineMax*0.95){
             EngineRedlineTimer += 0.02
         } else { EngineRedlineTimer = 0 }
@@ -656,7 +816,9 @@ if(EngineTempVal >= NextTempWarning){
     # ----------------- FORCE -----------------
     Dir = -E:up()
     TargetSpeed = MaxSpeed * Throttle / 10
-    Weld:applyForce(Dir * (TargetSpeed - V) * Mul * 2)
+    #Weld:applyForce(Dir * (TargetSpeed - V) * Mul * 2)
+DriveMul = Mul * ClutchSlip
+Weld:applyForce(Dir * (TargetSpeed - V) * DriveMul * 2)
 
 if(!TrainBrake & PrevTB & PrintedTB){
     print("Train Brake Released")
@@ -705,6 +867,10 @@ HandBrakeFinal = (ChatHandBrake == 1) ? 1 : HandBrake
 # ----------------- APPLY BRAKE FORCES -----------------
 BrakeDir = -Dir * sign(V)
 
+if(curtime() < HardStallEnd){
+    Weld:applyForce(BrakeDir * abs(V) * BrakeScale * 260)
+}
+
 if(IndepBrakeFinal == 1){ Weld:applyForce(BrakeDir * abs(V) * BrakeScale * 120) }
 if(TrainBrakeFinal == 1){ Weld:applyForce(BrakeDir * abs(V) * BrakeScale * 120) }
 if(HandBrakeFinal == 1){ Weld:applyForce(BrakeDir * abs(V) * HandBrakeScale * 160) }
@@ -737,6 +903,42 @@ PrevTB = TrainBrakeFinal
 PrevIB = IndepBrakeFinal
 PrevHB = HandBrakeFinal
 
+# ----------------- ROLLING START LOGIC -----------------
+if(EngineStalled & !EngineBroken){
+
+    if(ClutchInput & Throttle > 1){
+        RollingStartArmed = 1
+    }
+
+    if(RollingStartArmed & !ClutchInput){
+
+        if(MPH > 10){
+            EngineStalled = 0
+            RollingStartArmed = 0
+            RPM = max(EngineMin + 100, TargetRPM)
+            print("ROLLING START SUCCESS")
+            
+            EngineStalled = 0
+RollingStartArmed = 0
+CurrentNotch = -99
+soundStop(0)
+#soundPlay(0,0,Diesel_Sound)
+            soundPlay(0,0,Diesel_Sound)
+        } else {
+            RollingStartArmed = 0
+            EngineStalled = 1
+            RPM = 0
+            Throttle = 0
+            NegativeThrottle = 0
+
+            HardStallEnd = curtime() + 1
+
+            print("HARD STALL - TOO SLOW")
+            soundPlay(6,0,HardStall_Sound)
+        }
+    }
+}
+
 # ----------------- ENGINE STALL LOGIC -----------------
 if(!ClutchInput & !EngineBroken){
 
@@ -762,23 +964,23 @@ if(!ClutchInput & !EngineBroken){
     if(Gear == 1){ Stalled = 0 }
 
     # Apply stall without breaking engine
-    if(Stalled){
-        EngineStalled = 1
-        RPM = 0
-        Throttle = 0
-        NegativeThrottle = 0
+if(Stalled){
+    EngineStalled = 1
+    RPM = 0
+    Throttle = 0
+    NegativeThrottle = 0
+    CurrentNotch = -99
+    soundStop(0)
 
-        # Only print once per stall
-        if(!PrevEngineStalled){
-            print("ENGINE STALLED! Use key/Active to restart")
-            soundPlay(0,0,EngineStall_Sound)
-        }
-    } else {
-        EngineStalled = 0
+    if(!PrevEngineStalled){
+        print("ENGINE STALLED! Clutch in, throttle up, clutch out above 10 MPH to rolling start")
+        soundPlay(6,0,EngineStall_Sound)
     }
+}
 
 } else {
-    EngineStalled = 0
+    # Do not clear EngineStalled here.
+    # Clutching in while stalled is needed for rolling start.
 }
 
 # Save previous gear & stall state for next tick
@@ -791,6 +993,9 @@ PrevEngineStalled = EngineStalled
     RPM = TargetRPM = 300
     GearBroken = 0
     GearDamageCounter = 0
+    ClutchBroken = 0
+ClutchDamageCounter = 0
+ClutchHoldTimer = 0
     EngineBroken = 0
     EngineRedlineTimer = 0
     GearboxFirePlaying = 0
@@ -800,6 +1005,11 @@ PrevEngineStalled = EngineStalled
     soundStop(2)
     soundStop(4)
     soundStop(5)
+    EngineStalled = 0
+RollingStartArmed = 0
+HardStallEnd = 0
+ClutchWear = 0
+ClutchWearTimer = 0
 }
 
 
