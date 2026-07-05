@@ -1,0 +1,1264 @@
+@name Looz Combined Steam FX Controller V1.6.5
+@inputs Active Throttle Reverser WheelSpin ShovellingSteam Speed Pitch CocksOverride PSI SafetiesAF Blower ChatDebug
+@inputs WaterPumpEnt:entity AirPumpEnt:entity SafetyEnt:entity CocksEnt:entity BlowerEnt:entity
+@outputs ExhaustOn ExhaustParticle:string
+@inputs ExhaustSoundEnt:entity
+@outputs WaterPumpParticle AirPumpParticle SafetyParticle CocksParticle
+@persist PStages:array
+@persist Soot  DecayRate LastThrottle
+@persist ThrottleStage
+@persist CoastActive CoastNextToggle CoastState
+@persist ChuffLast ExhaustBark:string ExhaustBarkVol ExhaustBarkPitch
+@persist WP_Interval WP_Rand WP_Duration WP_Next WP_End WP_Active WP_Last
+@persist WP_NextStroke WP_StrokeInterval WP_StrokeRand WP_ParticleEnd
+@persist BarkIndex
+@persist ExhaustBarkDuration ExhaustBarkVolume ExhaustBarkLevel 
+@persist AP_Interval AP_Rand AP_Duration AP_Next AP_End AP_Active AP_Last
+@persist AP_On:string AP_Off:string
+@persist SV_Realistic SV_Interval SV_Rand SV_Duration SV_Next SV_End SV_Active SV_Last
+@persist SV_On:string SV_Off:string
+@persist AutoBlower BlowerActive
+@persist CC_Active CC_Last CC_CycleLength CC_OnTime CC_MinThrottle CC_CycleStart
+@persist CC_DwellTime CC_LowThrottleStart
+@persist CC_On:string CC_Off:string
+@persist BL_Active BL_Last
+@persist BL_On:string BL_Off:string
+@persist DefaultPitch DefaultVolume
+@persist WP_Sound:string
+@persist   SootStage 
+@persist ChuffSpeedMul ChuffSizeMul ChuffGapMul ChuffLoadMul
+@persist ChuffMinOn ChuffMaxOn ChuffMinGap 
+@persist ChuffActive ChuffState ChuffNextToggle ChuffOnTime ChuffOffTime
+@persist WheelDiameter ChuffsPerRev
+@persist WheelSpinSteamEnd WheelSpinSteamHold
+@persist AutoBlowerEnabled BlowerQ
+@persist IdleParticle:string BlowerParticle:string CoastParticle:string
+@persist SootClearRate ShovelSootAdd ThrottleSootAdd HeavySootAdd
+@persist AutoBlowerSpeed BL_Volume BL_Level
+@persist ParticleRefreshEnd ParticleRefreshNext
+@persist WheelSpinSteam
+@persist ExhaustBarkMode ExhaustBarkCutoff
+@persist LastExhaustOn LastExhaustParticle:string
+@persist LastBlowerActive LastAutoBlowerEnabled
+@persist LastWPActive LastAPActive LastSVActive LastCCActive
+@persist LastWheelSpinSteam LastCoastActive LastChuffActive
+@persist LastSootStage LastThrottleStage
+@trigger none
+
+interval(50)
+
+if(first() | dupefinished()){
+    
+# ============================================================
+# LOOZ COMBINED STEAM FX CONTROLLER
+# Version 1.6.5
+#
+# Unified steam locomotive effects controller for
+# Garry's Mod / Expression 2.
+#
+# Please keep in mind this e2 is buggy and not perfect. For e.g I know the waterpump will work even if you dont wire it, it will be fixed in the next update, for now just # it out if your not using it.
+#
+#
+# Combines:
+# - Dynamic Steam Exhaust
+# - Wheel RPM Chuff System
+# - Exhaust Bark Audio
+# - Wheel Slip Exhaust Blast
+# - Automatic / Manual Blower
+# - Water Pump
+# - Air Pump
+# - Safety Valves
+# - Cylinder Cocks
+#
+# Designed to replace multiple E2 chips with a
+# single high-performance controller.
+#
+# ============================================================
+# INPUTS
+# ============================================================
+#
+# Active
+# Master enable for all systems.
+#
+# Throttle
+# Regulator value (recommended 0-10).
+#
+# Reverser
+# Cutoff value.
+# Used to determine locomotive load.
+#
+# Speed
+# Locomotive speed in MPH.
+#
+# WheelSpin
+# Set to 1 while drivers are slipping.
+# Triggers wheel slip exhaust blasts.
+#
+# ShovellingSteam
+# Connect to firebox door E2 or firing logic.
+# Increases soot generation while firing.
+#
+# Pitch
+# Global sound pitch multiplier.
+#
+# PSI
+# Reserved for future boiler pressure systems.
+#
+# SafetiesAF
+# Real safety valve trigger.
+# Used when SV_Realistic = 1.
+#
+# CocksOverride
+# Forces cylinder cocks open.
+#
+# Blower
+# Manual blower override toggle.
+#
+# First press:
+# -> Disable automatic blower.
+#
+# Second press:
+# -> Re-enable automatic blower.
+#
+# ============================================================
+# SOUND ENTITY INPUTS
+# ============================================================
+#
+# ExhaustSoundEnt:entity
+# Exhaust bark and chuff sounds.
+# Recommended position:
+# -> Chimney / Funnel base.
+#
+# BlowerEnt:entity
+# Blower sound source.
+# Recommended position:
+# -> Firebox / cab front.
+#
+# WaterPumpEnt:entity
+# Water pump sound source.
+#
+# AirPumpEnt:entity
+# Air compressor sound source.
+#
+# SafetyEnt:entity
+# Safety valve sound source.
+#
+# CocksEnt:entity
+# Cylinder cock sound source.
+#
+# All sounds use:
+#
+#     Entity:soundPlay()
+#
+# allowing sounds to originate from the
+# correct location on the locomotive.
+#
+# ============================================================
+# OUTPUTS
+# ============================================================
+#
+# ExhaustOn
+# Enables the exhaust emitter.
+#
+# ExhaustParticle
+# Particle selected by:
+# - throttle
+# - soot
+# - wheel slip
+# - coasting
+# - blower
+#
+# WaterPumpParticle
+# Pulsed with pump strokes.
+#
+# AirPumpParticle
+# Active while compressor runs.
+#
+# SafetyParticle
+# Active while safety valves lift.
+#
+# CocksParticle
+# Active while cylinder cocks are open.
+#
+# ============================================================
+# EXHAUST SYSTEM
+# ============================================================
+#
+# Features:
+#
+# - Wheel RPM based chuff timing
+# - Cylinder-count support
+# - Dynamic smoke colour
+# - Load-based exhaust bark
+# - Coasting drift exhaust
+# - Automatic soot generation
+# - Wheel slip exhaust blast
+# - Automatic and manual blower
+#
+# Exhaust timing is calculated from:
+#
+#     Driver Diameter
+#     Chuffs Per Revolution
+#     Speed
+#
+# Recommended values:
+#
+# 2-cylinder locomotives:
+#     ChuffsPerRev = 4
+#
+# 3-cylinder locomotives:
+#     ChuffsPerRev = 6
+#
+# 4-cylinder locomotives:
+#     ChuffsPerRev = 8
+#
+# ============================================================
+# BLOWER SYSTEM
+# ============================================================
+#
+# Automatic blower activates when:
+#
+#     Throttle <= 0.5
+#     Speed < AutoBlowerSpeed
+#
+# Manual blower input toggles automatic
+# blower enable/disable.
+#
+# Blower particle:
+#
+#     clag_2stroke_2
+#
+# Simulates steam passing through the
+# blower ring to maintain draught while
+# standing or drifting.
+#
+# ============================================================
+# WHEEL SLIP SYSTEM
+# ============================================================
+#
+# When WheelSpin is active under power:
+#
+# - Exhaust briefly overrides to a
+#   heavy blast.
+#
+# - Soot temporarily increases.
+#
+# Simulates steam being wasted while
+# drivers slip under heavy load.
+#
+# ============================================================
+# WATER PUMP SYSTEM
+# ============================================================
+#
+# Automatic intermittent operation.
+#
+# Generates:
+# - Water pump sounds
+# - Pump stroke particles
+#
+# Individual strokes are timed to
+# simulate reciprocating pumps.
+#
+# ============================================================
+# AIR PUMP SYSTEM
+# ============================================================
+#
+# Automatic compressor cycling.
+#
+# Generates:
+# - Loop sound
+# - End sound
+# - Compressor particles
+#
+# ============================================================
+# SAFETY VALVES
+# ============================================================
+#
+# Modes:
+#
+# SV_Realistic = 0
+# -> Timed demonstration mode
+#
+# SV_Realistic = 1
+# -> Uses SafetiesAF input
+#
+# ============================================================
+# CYLINDER COCKS
+# ============================================================
+#
+# Automatic low-throttle cycling.
+#
+# May also be forced open using:
+#
+#     CocksOverride
+#
+# ============================================================
+# PERFORMANCE NOTES
+# ============================================================
+#
+# Designed to replace multiple E2 chips.
+#
+# Benefits:
+#
+# - Reduced chip count
+# - Lower CPU usage
+# - Shared locomotive state
+# - Unified sound system
+# - Easier maintenance
+# - Easier expansion
+#
+# Planned future additions:
+#
+# - Injector sounds
+# - Brake ejector sounds
+# - Steam heating
+# - Dynamo sounds
+# - Ashpan effects
+# - Firedoor effects
+# - Turbo generator
+# - Whistle controller
+#
+# ============================================================
+
+# ============================================================
+# CONFIG
+# ============================================================
+
+DefaultPitch = 100
+DefaultVolume = 1
+
+# -------------------------
+# LOCOMOTIVE SETUP
+# -------------------------
+WheelDiameter = 63
+ChuffsPerRev = 3
+
+
+# -------------------------
+# EXHAUST PARTICLES
+# -------------------------
+PStages = array(
+    "smoke_gib_01",
+
+    "White_100_Thin",
+    "White_100_Medium",
+    "White_100_Thick",
+
+    "Gray_100_Thin",
+    "Gray_100_Medium",
+    "Gray_100_Thick",
+
+    "Black_100_Thin",
+    "Black_100_Medium",
+    "Black_100_Thick"
+)
+
+IdleParticle = "smoke_gib_01"
+BlowerParticle = "clag_2stroke_2"
+CoastParticle = "clag_2stroke_1"
+
+# -------------------------
+# SOOT / SMOKE COLOUR
+# -------------------------
+Soot = 10
+SootClearRate = 0.35
+ShovelSootAdd = 1.0
+ThrottleSootAdd = 0.2
+HeavySootAdd = 0.45
+
+# -------------------------
+# CHUFF TIMING
+# -------------------------
+ChuffSpeedMul = 1.5
+ChuffSizeMul = 1.25
+ChuffGapMul = 0.8
+ChuffLoadMul = 1.15
+
+ChuffMinOn = 0.06
+ChuffMaxOn = 0.32
+ChuffMinGap = 0.045
+
+# -------------------------
+# WHEELSPIN BLAST
+# -------------------------
+WheelSpinSteamHold = 0.08
+
+# -------------------------
+# BLOWER
+# -------------------------
+AutoBlowerEnabled = 1
+AutoBlowerSpeed = 8
+
+BL_On = "ether2001s_train_sounds/steam/britan/hall_class/fire_blower_loop.wav"
+BL_Off = "ether2001s_train_sounds/steam/britan/hall_class/fire_blower_end.wav"
+BL_Volume = 0.6
+BL_Level = 85
+
+# -------------------------
+# EXHAUST BARK SOUND
+# -------------------------
+# train sounds/de/steam/chuff/express 10/piston_stroke1.wav
+# train sounds/de/steam/chuff/express 16/piston_stroke3.wav
+# train sounds/de/steam/chuff/freight 28/piston_stroke2.wav
+ExhaustBark = "train sounds/de/steam/chuff/express 10/piston_stroke1.wav"
+
+ExhaustBarkVolume = 3.5
+ExhaustBarkLevel = 120
+ExhaustBarkPitch = 95
+ExhaustBarkDuration = 0.5
+
+# -------------------------
+# EXHAUST BARK CONTROL
+# -------------------------
+
+# 0 = Always enabled
+# 1 = Disabled
+# 2 = Disable above speed
+
+ExhaustBarkMode = 2
+ExhaustBarkCutoff = 25
+
+
+# -------------------------
+# WATER PUMP
+# -------------------------
+WP_Interval = 220
+WP_Rand = 21
+WP_Duration = 30
+WP_StrokeInterval = 1
+WP_StrokeRand = 0.2
+
+# -------------------------
+# AIR PUMP
+# -------------------------
+AP_Interval = 200
+AP_Rand = 22
+AP_Duration = 17
+AP_On = "locnoisbygeordie/steam/misc/air_pump5_loop_slow.wav"
+AP_Off = "locnoisbygeordie/steam/misc/air_pump5_end_slow.wav"
+
+# -------------------------
+# SAFETY VALVES
+# -------------------------
+SV_Realistic = 0
+SV_Interval = 120
+SV_Rand = 30
+SV_Duration = 6
+SV_On = "steam/lner/v4/cylnder_cock_open.wav"
+SV_Off = "steam/lner/v4/cylnder_cock_close.wav"
+
+# -------------------------
+# CYLINDER COCKS
+# -------------------------
+CC_CycleLength = 240
+CC_OnTime = 7
+CC_MinThrottle = 1.5
+CC_DwellTime = 30
+CC_On = "ether2001s_train_sounds/steam/australia/vr_a2_class/cylinder_cocks_loop.wav"
+CC_Off = "ether2001s_train_sounds/steam/australia/vr_a2_class/cylinder_cocks_end.wav"
+
+# -------------------------
+# INTERNAL STATE
+# -------------------------
+LastThrottle = 0
+
+CoastActive = 0
+CoastState = 0
+CoastNextToggle = curtime()
+
+ChuffActive = 0
+ChuffState = 0
+ChuffNextToggle = curtime()
+ChuffOnTime = 0
+ChuffOffTime = 0
+
+BL_Active = 0
+BL_Last = 0
+BlowerQ = 0
+
+WheelSpinSteamEnd = 0
+
+BarkIndex = 0
+ChuffLast = 0
+
+WP_Active = 0
+WP_Last = 0
+WP_End = 0
+WP_Next = curtime()
+WP_NextStroke = 0
+WP_ParticleEnd = 0
+
+AP_Active = 0
+AP_Last = 0
+AP_End = 0
+AP_Next = curtime() + AP_Interval
+
+SV_Active = 0
+SV_Last = 0
+SV_End = 0
+SV_Next = curtime() + SV_Interval
+
+CC_Active = 0
+CC_Last = 0
+CC_CycleStart = 0
+CC_LowThrottleStart = 0
+
+
+}
+
+if(curtime() >= ParticleRefreshNext){
+    ParticleRefreshEnd = curtime() + 0.05
+    ParticleRefreshNext = curtime() + random(8,15)
+}
+
+ParticleRefresh = curtime() < ParticleRefreshEnd
+
+# ============================================================
+# EXHAUST PARTICLE SYSTEM
+# Internal chuff pulses + coasting fallback
+# ============================================================
+
+Throttle = clamp(Throttle, 0, 10)
+# --------------------
+# POWER FACTOR
+# --------------------
+
+Cutoff = abs(Reverser)
+
+PowerFactor = clamp(Throttle / 10, 0, 1)
+
+# Reverser below 0.25 has little effect
+CutoffFactor = clamp((Cutoff - 0.25) / 0.75, 0, 1)
+
+# Combined load factor
+HeavyWorking = PowerFactor * CutoffFactor
+
+# --------------------
+# SOOT
+# --------------------
+ThrottleDelta = Throttle - LastThrottle
+LastThrottle = Throttle
+
+# slow natural clearing
+Soot -= SootClearRate
+
+# firing makes exhaust slowly dirtier
+if(ShovellingSteam){
+Soot += ShovelSootAdd
+}
+
+# sudden regulator changes make a short dirty burst
+if(ThrottleDelta > 0.5){
+    Soot += ThrottleDelta * 2.5
+}
+
+# hard working makes smoke gradually dirtier
+if(Throttle >= 7){
+Soot += ThrottleSootAdd
+}
+
+Soot = clamp(Soot, 0, 100)
+
+SootStage = (Soot >= 33) + (Soot >= 66)
+ThrottleStage = (Throttle > 0.5) + (Throttle >= 3) + (Throttle >= 6)
+if(HeavyWorking > 0.55){
+Soot += HeavyWorking * HeavySootAdd
+}
+
+
+# --------------------
+# AUTO BLOWER TOGGLE
+# Press blower input to enable/disable auto blower
+# --------------------
+
+if(Blower & !BlowerQ){
+    AutoBlowerEnabled = !AutoBlowerEnabled
+    BlowerQ = 1
+}elseif(!Blower){
+    BlowerQ = 0
+}
+
+AutoBlower = AutoBlowerEnabled & Active & Throttle <= 0.5 & Speed < AutoBlowerSpeed
+
+BlowerActive = AutoBlower
+
+# --------------------
+# BLOWER SOUND
+# --------------------
+
+BL_Active = Active & BlowerActive & Throttle <= 0.5
+
+BL_Rise = BL_Active & !BL_Last
+BL_Fall = !BL_Active & BL_Last
+
+if(BL_Rise){
+
+    if(BlowerEnt:isValid()){
+        BlowerEnt:soundPlay(60, 0, BL_On)
+    }else{
+        soundPlay(60, 0, BL_On)
+    }
+
+soundVolume(60, BL_Volume)
+soundLevel(60, BL_Level)
+}
+
+if(BL_Fall){
+
+    soundStop(60, 0.5)
+
+    if(BlowerEnt:isValid()){
+        BlowerEnt:soundPlay(61, 1, BL_Off)
+    }else{
+        soundPlay(61, 1, BL_Off)
+    }
+
+    soundVolume(61, 0.5)
+    soundLevel(61, 85)
+}
+
+soundPitch(60, 95 + random(-2,2))
+soundPitch(61, 100)
+
+BL_Last = BL_Active
+# --------------------
+# BLOWER SOUND
+# --------------------
+
+BL_Active = Active & BlowerActive & Throttle <= 0.5
+
+BL_Rise = BL_Active & !BL_Last
+BL_Fall = !BL_Active & BL_Last
+
+if(BL_Rise){
+
+    if(BlowerEnt:isValid()){
+        BlowerEnt:soundPlay(60, 0, BL_On)
+    }else{
+        soundPlay(60, 0, BL_On)
+    }
+
+    soundVolume(60, 0.6)
+    soundLevel(60, 85)
+}
+
+if(BL_Fall){
+
+    soundStop(60, 0.5)
+
+    if(BlowerEnt:isValid()){
+        BlowerEnt:soundPlay(61, 1, BL_Off)
+    }else{
+        soundPlay(61, 1, BL_Off)
+    }
+
+    soundVolume(61, 0.5)
+    soundLevel(61, 85)
+}
+
+soundPitch(60, 95 + random(-2,2))
+soundPitch(61, 100)
+
+BL_Last = BL_Active
+
+if(BL_Rise){
+
+    if(ChatDebug){
+        print("[SteamFX] Blower ON")
+    }
+
+    if(BlowerEnt:isValid()){
+        BlowerEnt:soundPlay(60, 0, BL_On)
+    }else{
+        soundPlay(60, 0, BL_On)
+    }
+
+    soundVolume(60, BL_Volume)
+    soundLevel(60, BL_Level)
+}
+
+if(BL_Fall){
+
+    if(ChatDebug){
+        print("[SteamFX] Blower OFF")
+    }
+
+    soundStop(60, 0.5)
+
+    if(BlowerEnt:isValid()){
+        BlowerEnt:soundPlay(61, 1, BL_Off)
+    }else{
+        soundPlay(61, 1, BL_Off)
+    }
+}
+# --------------------
+# COASTING / DRIFT CHUFF
+# Regulator shut, moving, light uneven exhaust
+# --------------------
+
+# CoastActive = Active & Throttle <= 0.5 & Speed >= 6 & Speed <= 75                  # No blower
+CoastActive = Active & Throttle <= 0.5 & Speed >= (BlowerActive ? 2 : 6) & Speed <= 75     # With blower
+
+if(!CoastActive){
+    CoastState = 0
+    CoastNextToggle = curtime()
+}
+
+if(CoastActive & curtime() >= CoastNextToggle){
+    CoastState = !CoastState
+
+    if(CoastState){
+        # Short soft puff
+        if(Speed < 15){
+            CoastNextToggle = curtime() + random(0.12, 0.22)
+        }elseif(Speed < 35){
+            CoastNextToggle = curtime() + random(0.10, 0.18)
+        }else{
+            CoastNextToggle = curtime() + random(0.08, 0.14)
+        }
+    }else{
+        # Gap between drift puffs
+        if(Speed < 15){
+            CoastNextToggle = curtime() + random(1.1, 1.8)
+        }elseif(Speed < 35){
+            CoastNextToggle = curtime() + random(0.65, 1.1)
+        }elseif(Speed < 55){
+            CoastNextToggle = curtime() + random(0.38, 0.75)
+        }else{
+            CoastNextToggle = curtime() + random(0.25, 0.55)
+        }
+    }
+}
+# --------------------
+# POWER CHUFF ACTIVE
+# --------------------
+ChuffActive = Active & !CoastActive & ThrottleStage > 0
+
+if(!ChuffActive){
+    ChuffState = 0
+    ChuffNextToggle = curtime()
+}
+
+# --------------------
+# CHUFF TIMING BY WHEEL RPM
+# --------------------
+SpeedIPS = max(abs(Speed) * 17.6, 0.1)
+
+WheelCirc = WheelDiameter * _PI
+RevTime = WheelCirc / SpeedIPS
+BaseChuffGap = RevTime / ChuffsPerRev
+
+# At very low speed, slow clear beats
+if(abs(Speed) < 1){
+    BaseChuffGap = 1.2
+}
+
+ChuffOnTime = BaseChuffGap * 0.35
+ChuffOffTime = BaseChuffGap * 0.65
+
+# Load makes the blast longer and gaps shorter
+ChuffOnTime += PowerFactor * 0.04 * ChuffSizeMul
+ChuffOnTime += HeavyWorking * 0.09 * ChuffLoadMul
+ChuffOffTime *= 1 - clamp(HeavyWorking * 0.35 * ChuffLoadMul, 0, 0.55)
+
+# Tuning
+ChuffOnTime *= ChuffSizeMul
+ChuffOffTime *= ChuffGapMul / ChuffSpeedMul
+
+# Do not allow times faster than the chip can reliably update
+ChuffOnTime = clamp(ChuffOnTime, 0.08, ChuffMaxOn)
+ChuffOffTime = clamp(ChuffOffTime, 0.08, 2.0)
+
+# Actual on/off pulse
+if(ChuffActive & curtime() >= ChuffNextToggle){
+    ChuffState = !ChuffState
+
+    if(ChuffState){
+        ChuffNextToggle = curtime() + ChuffOnTime
+    }else{
+        ChuffNextToggle = curtime() + ChuffOffTime
+    }
+}
+# --------------------
+# EXHAUST BARK SOUND
+# Plays once per chuff rise.
+# Uses rotating sound IDs so chuffs can overlap.
+# --------------------
+
+ChuffRise = ChuffActive & ChuffState & !ChuffLast
+# --------------------
+# EXHAUST BARK SOUND
+# Plays once per chuff rise.
+# Uses rotating sound IDs so chuffs can overlap.
+# --------------------
+
+ChuffRise = ChuffActive & ChuffState & !ChuffLast
+
+# -------------------------------------------------
+# EXHAUST BARK ENABLE LOGIC
+# -------------------------------------------------
+
+BarksEnabled = 1
+
+# 0 = Always enabled
+# 1 = Disabled
+# 2 = Disabled above cutoff speed
+
+if(ExhaustBarkMode == 1){
+    BarksEnabled = 0
+}elseif(ExhaustBarkMode == 2){
+    BarksEnabled = abs(Speed) < ExhaustBarkCutoff
+}
+
+if(ChuffRise & BarksEnabled){
+
+    BarkIndex++
+    if(BarkIndex > 16){ BarkIndex = 1 }
+
+    BarkID = 80 + BarkIndex
+
+    # Faster chuffs = louder bark
+    ChuffRatePower = clamp(1 / max(ChuffOffTime, 0.08), 0, 10) / 10
+
+    # Load also makes it louder
+    BarkPower = clamp(
+        0.45 +
+        ChuffRatePower * 0.35 +
+        HeavyWorking * 0.45,
+        0.35,
+        1
+    )
+
+    if(ExhaustSoundEnt:isValid()){
+        ExhaustSoundEnt:soundPlay(
+            BarkID,
+            ExhaustBarkDuration,
+            ExhaustBark
+        )
+    }else{
+        soundPlay(
+            BarkID,
+            ExhaustBarkDuration,
+            ExhaustBark
+        )
+    }
+
+    soundLevel(BarkID, ExhaustBarkLevel)
+    soundVolume(BarkID, ExhaustBarkVolume * BarkPower)
+    soundPitch(
+        BarkID,
+        ExhaustBarkPitch +
+        random(-5,5) +
+        HeavyWorking * 6
+    )
+}
+
+ChuffLast = ChuffState
+# --------------------
+# WHEELSPIN EXHAUST BLAST
+# Short override, not permanent
+# --------------------
+
+if(Active & WheelSpin > 0 & Throttle >= 7){
+    WheelSpinSteamEnd = curtime() + WheelSpinSteamHold
+    Soot += 1.2
+}
+#[
+WheelSpinSteam = Active & WheelSpin > 0 & curtime() < WheelSpinSteamEnd
+if(ChatDebug & WheelSpinSteam & !LastWheelSpinSteam){
+    print("[SteamFX] Wheel slip exhaust ACTIVE")
+}
+
+if(ChatDebug & !WheelSpinSteam & LastWheelSpinSteam){
+    print("[SteamFX] Wheel slip exhaust ENDED")
+}
+
+LastWheelSpinSteam = WheelSpinSteam
+]#
+# --------------------
+# PARTICLE OUTPUT
+# --------------------
+ExhaustOn = 0
+ExhaustParticle = "smoke_gib_01"
+
+if(!Active){
+    ExhaustOn = 0
+    ExhaustParticle = ""
+
+}elseif(WheelSpinSteam){
+    ExhaustOn = 1
+
+    if(Throttle >= 8 & Soot > 55){
+        ExhaustParticle = "Gray_100_Thick"
+    }elseif(Throttle >= 8){
+        ExhaustParticle = "White_100_Thick"
+    }else{
+        ExhaustParticle = "White_100_Medium"
+    }
+
+}elseif(ChuffActive & ChuffState){
+    ExhaustOn = 1
+
+    ExhaustParticle = PStages[
+        ThrottleStage + 1 +
+        ((SootStage == 1) * 3) +
+        ((SootStage == 2) * 6),
+        string
+    ]
+
+}elseif(CoastActive & CoastState){
+    ExhaustOn = 1
+
+    if(Speed < 20){
+        ExhaustParticle = "clag_2stroke_1"
+    }elseif(Speed < 45){
+        ExhaustParticle = "White_100_Thin"
+    }else{
+        ExhaustParticle = "White_100_Medium"
+    }
+}elseif(Active & BlowerActive & Throttle <= 0.5){
+    ExhaustOn = 1
+    ExhaustParticle = BlowerParticle
+}else{
+    ExhaustOn = 0
+    ExhaustParticle = "smoke_gib_01"
+}
+if(ParticleRefresh){
+    ExhaustOn = 0
+}
+#if(ChatDebug & ExhaustParticle != LastExhaustParticle){
+#    print("[SteamFX] Particle -> " + ExhaustParticle)
+#}
+
+#LastExhaustParticle = ExhaustParticle
+# ============================================================
+# WATER PUMP
+# ============================================================
+
+if(!Active){
+    WP_Active = 0
+    WP_End = 0
+    WP_Next = curtime() + WP_Interval
+}
+
+if(Active & !WP_Active & curtime() >= WP_Next){
+    WP_Active = 1
+    WP_End = curtime() + WP_Duration
+    WP_Next = curtime() + WP_Interval + random(-WP_Rand, WP_Rand)
+    WP_NextStroke = curtime()
+}
+
+if(WP_Active & curtime() >= WP_End){
+    WP_Active = 0
+    WP_End = 0
+}
+
+if(WP_Active & curtime() >= WP_NextStroke){
+    ChuffID = ceil(random(1,8))
+    WP_Sound = "usa_locomotive_sounds_3/steam/cylindercocks/chuff/style1/cylinderdrainchuff" + ChuffID + ".wav"
+
+    if(WaterPumpEnt:isValid()){
+        WaterPumpEnt:soundPlay(20, 0, WP_Sound)
+    }else{
+        soundPlay(20, 0, WP_Sound)
+    }
+
+    soundVolume(20, 1)
+    soundPitch(20, Pitch ? Pitch * 100 : 100)
+
+    WP_ParticleEnd = curtime() + 0.15
+    WP_NextStroke = curtime() + WP_StrokeInterval + random(-WP_StrokeRand, WP_StrokeRand)
+}
+
+WaterPumpParticle = curtime() < WP_ParticleEnd
+
+if(!WP_Active & WP_Last){
+    soundStop(20)
+}
+
+WP_Last = WP_Active
+
+
+# ============================================================
+# AIR PUMP
+# ============================================================
+
+if(!Active){
+    AP_Active = 0
+    AP_End = 0
+    AP_Next = curtime() + AP_Interval
+}
+
+if(Active & !AP_Active & curtime() >= AP_Next){
+    AP_Active = 1
+    AP_End = curtime() + AP_Duration
+    AP_Next = curtime() + AP_Interval + random(-AP_Rand, AP_Rand)
+}
+
+if(AP_Active & curtime() >= AP_End){
+    AP_Active = 0
+    AP_End = 0
+}
+
+AirPumpParticle = AP_Active
+
+AP_Rise = AP_Active & !AP_Last
+AP_Fall = !AP_Active & AP_Last
+
+if(AP_Rise){
+    soundStop(31)
+
+    if(AirPumpEnt:isValid()){
+        AirPumpEnt:soundPlay(30, 0, AP_On)
+    }else{
+        soundPlay(30, 0, AP_On)
+    }
+
+    soundVolume(30, DefaultVolume)
+}
+
+if(AP_Fall){
+    soundStop(30)
+
+    if(AirPumpEnt:isValid()){
+        AirPumpEnt:soundPlay(31, 1, AP_Off)
+    }else{
+        soundPlay(31, 1, AP_Off)
+    }
+
+    soundVolume(31, DefaultVolume)
+}
+
+soundPitch(30, Pitch ? Pitch * 100 : DefaultPitch)
+soundPitch(31, Pitch ? Pitch * 100 : DefaultPitch)
+
+AP_Last = AP_Active
+
+
+# ============================================================
+# SAFETY VALVES
+# ============================================================
+
+if(!Active){
+    SV_Active = 0
+    SV_End = 0
+}
+
+if(Active & SV_Realistic){
+    SV_Active = SafetiesAF ? 1 : 0
+}
+
+if(Active & !SV_Realistic){
+
+    if(Throttle != 0){
+        SV_Active = 0
+        SV_End = 0
+        SV_Next = curtime() + SV_Interval
+    }
+
+    if(Throttle == 0 & !SV_Active & curtime() >= SV_Next){
+        SV_Active = 1
+        SV_End = curtime() + SV_Duration
+        SV_Next = curtime() + SV_Interval + random(-SV_Rand, SV_Rand)
+    }
+
+    if(SV_Active & curtime() >= SV_End){
+        SV_Active = 0
+        SV_End = 0
+    }
+}
+
+SafetyParticle = SV_Active
+
+SV_Rise = SV_Active & !SV_Last
+SV_Fall = !SV_Active & SV_Last
+
+if(SV_Rise){
+    soundStop(41)
+
+    if(SafetyEnt:isValid()){
+        SafetyEnt:soundPlay(40, 0, SV_On)
+    }else{
+        soundPlay(40, 0, SV_On)
+    }
+
+    soundVolume(40, DefaultVolume)
+}
+
+if(SV_Fall){
+    soundStop(40)
+
+    if(SafetyEnt:isValid()){
+        SafetyEnt:soundPlay(41, 1, SV_Off)
+    }else{
+        soundPlay(41, 1, SV_Off)
+    }
+
+    soundVolume(41, DefaultVolume)
+}
+
+soundPitch(40, Pitch ? Pitch * 100 : DefaultPitch)
+soundPitch(41, Pitch ? Pitch * 100 : DefaultPitch)
+
+SV_Last = SV_Active
+
+
+# ============================================================
+# CYLINDER COCKS
+# ============================================================
+
+if(!Active){
+    CC_Active = 0
+    CC_CycleStart = 0
+    CC_LowThrottleStart = 0
+}
+
+CC_Auto = 0
+
+if(Active & !CocksOverride){
+
+    if(Throttle > CC_MinThrottle){
+        CC_CycleStart = 0
+        CC_LowThrottleStart = 0
+    }else{
+
+        if(CC_LowThrottleStart == 0){
+            CC_LowThrottleStart = curtime()
+        }
+
+        if((curtime() - CC_LowThrottleStart) >= CC_DwellTime){
+
+            if(CC_CycleStart == 0){
+                CC_CycleStart = curtime()
+            }
+
+            CC_Elapsed = curtime() - CC_CycleStart
+
+            if(CC_Elapsed >= CC_CycleLength){
+                CC_CycleStart = curtime()
+                CC_Elapsed = 0
+            }
+
+            CC_Auto = CC_Elapsed <= CC_OnTime
+        }
+    }
+}
+
+CC_Active = Active & (CocksOverride | CC_Auto)
+CocksParticle = CC_Active
+
+CC_Rise = CC_Active & !CC_Last
+CC_Fall = !CC_Active & CC_Last
+
+if(CC_Rise){
+    soundStop(51)
+
+    if(CocksEnt:isValid()){
+        CocksEnt:soundPlay(50, 0, CC_On)
+    }else{
+        soundPlay(50, 0, CC_On)
+    }
+
+    soundVolume(50, DefaultVolume)
+}
+
+if(CC_Fall){
+    soundStop(50)
+
+    if(CocksEnt:isValid()){
+        CocksEnt:soundPlay(51, 1, CC_Off)
+    }else{
+        soundPlay(51, 1, CC_Off)
+    }
+
+    soundVolume(51, DefaultVolume)
+}
+
+soundPitch(50, Pitch ? Pitch * 100 : DefaultPitch)
+soundPitch(51, Pitch ? Pitch * 100 : DefaultPitch)
+
+CC_Last = CC_Active
+
+# ============================================================
+# CHAT DEBUG
+# Set ChatDebug = 1 to print state changes to chat.
+# Set ChatDebug = 0 to disable.
+# ============================================================
+
+if(ChatDebug){
+
+  #  if(ExhaustOn != LastExhaustOn){
+  #      print("[SteamFX] ExhaustOn = " + ExhaustOn)
+  #  }
+
+#    if(ExhaustParticle != LastExhaustParticle){
+#        print("[SteamFX] ExhaustParticle -> " + ExhaustParticle)
+#    }
+
+    if(BlowerActive != LastBlowerActive){
+        print("[SteamFX] Blower " + (BlowerActive ? "ON" : "OFF"))
+    }
+
+    if(AutoBlowerEnabled != LastAutoBlowerEnabled){
+        print("[SteamFX] Auto blower " + (AutoBlowerEnabled ? "ENABLED" : "DISABLED"))
+    }
+
+    if(WP_Active != LastWPActive){
+        print("[SteamFX] Water pump " + (WP_Active ? "ON" : "OFF"))
+    }
+
+    if(AP_Active != LastAPActive){
+        print("[SteamFX] Air pump " + (AP_Active ? "ON" : "OFF"))
+    }
+
+    if(SV_Active != LastSVActive){
+        print("[SteamFX] Safety valves " + (SV_Active ? "OPEN" : "CLOSED"))
+    }
+
+    if(CC_Active != LastCCActive){
+        print("[SteamFX] Cylinder cocks " + (CC_Active ? "OPEN" : "CLOSED"))
+    }
+
+    if(WheelSpinSteam != LastWheelSpinSteam){
+        print("[SteamFX] Wheel slip exhaust " + (WheelSpinSteam ? "ON" : "OFF"))
+    }
+
+    if(CoastActive != LastCoastActive){
+        print("[SteamFX] Coasting exhaust " + (CoastActive ? "ACTIVE" : "INACTIVE"))
+    }
+
+    if(ChuffActive != LastChuffActive){
+        print("[SteamFX] Power chuffing " + (ChuffActive ? "ACTIVE" : "INACTIVE"))
+    }
+
+    if(SootStage != LastSootStage){
+        print("[SteamFX] SootStage = " + SootStage + " / Soot = " + round(Soot))
+    }
+
+    if(ThrottleStage != LastThrottleStage){
+        print("[SteamFX] ThrottleStage = " + ThrottleStage + " / Throttle = " + round(Throttle,1))
+    }
+}
+# ------------------------------------------------------------
+# CHAT DEBUG STATE MEMORY
+# Must be AFTER the debug print block.
+# This stops debug from printing every tick.
+# ------------------------------------------------------------
+
+LastExhaustOn = ExhaustOn
+LastExhaustParticle = ExhaustParticle
+
+LastBlowerActive = BlowerActive
+LastAutoBlowerEnabled = AutoBlowerEnabled
+
+LastWPActive = WP_Active
+LastAPActive = AP_Active
+LastSVActive = SV_Active
+LastCCActive = CC_Active
+
+LastWheelSpinSteam = WheelSpinSteam
+LastCoastActive = CoastActive
+LastChuffActive = ChuffActive
+
+LastSootStage = SootStage
+LastThrottleStage = ThrottleStage
