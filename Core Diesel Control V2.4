@@ -1,0 +1,1416 @@
+@name Core Diesel Control V2.4
+@inputs Active On_Signal Killswitch W S A D Space TrainBrake IndepBrake HandBrake Throttle_OVR
+@outputs MPH KPH V Throttle Reverser Brake DynamicBrake EngineRPM TargetRPM EngineLoad EngineOn EngineLatched DelayedSignal HeatwaveEmit Particle:string ParticleOn StartupStage WheelSlip SlipAmount ShutdownAlarmActive ShutdownTimeRemaining OPS
+@persist [EngineName Diesel_Sound Notch1_Sound Notch2_Sound Notch3_Sound Notch4_Sound Notch5_Sound Notch6_Sound Notch7_Sound Notch8_Sound]:string
+@persist [TrainBrake_Sound IndepBrake_Sound HandBrake_Sound]:string
+@persist [InitSound StartSound ShutdownSound ShutdownAlarmSound Stage1Particle Stage2Particle IdleParticle]:string
+@persist MaxSpeedMPH MaxSpeed Mul BrakeScale HandBrakeScale
+@persist IdleRPM FullRPM EngineRPM TargetRPM RPMRiseRate RPMFallRate StartupRPMRiseRate EngineLoad
+@persist RPMHuntEnabled RPMHuntAmount RPMHuntSpeed RPMHuntSecondarySpeed RPMHuntOffset
+@persist SoundPitchRPM SoundPitchThrottle IdlePitch FullPitch ThrottlePitchAdd
+@persist StartupStage1Time StartupTotalTime StartupTimer StartupActive StartupStage MessageSent
+@persist EngineOn EngineLatched PrevOnSignal PrevActive PrevKillswitch ChatStartPulse ChatStopPulse
+@persist PowerNotch TargetNotch PrevTargetNotch CurrentNotch SoundNotch PlayingNotch NextSoundChange
+@persist Throttle Reverser Brake Braking DynamicBrake DynamicBrakeRequest ChatDynamicBrake
+@persist DynamicBrakeEnabled DynBrakePower DynamicBrakeMinMPH DynamicBrakeFullMPH DynamicBrakeApplyRate DynamicBrakeReleaseRate
+@persist ClagEnabled MaxClagLevel SteadyClagFactor ClagBoostPerNotch ClagDecayRate ClagBoost SmokeLevel
+@persist WheelSlipEnabled Adhesion WheelSlipSpeedMPH WheelSlipThreshold WheelSlipForceMul WheelSlipRiseRate WheelSlipRecoverRate SlipAmount WheelSlip
+@persist WheelSlipRPMBoost WheelSlipClagBoost
+@persist RequireNeutralStart DebugMode PrevWheelSlip PrevDynamicBrakeActive PrevStartupStage
+@persist ShutdownAlarmEnabled ShutdownAlarmTime ShutdownAlarmTimer ShutdownAlarmActive ShutdownTimeRemaining ShutdownPending
+@persist PrevW PrevS PrevA PrevD PrevTB PrevIB PrevHB
+@persist ChatTrainBrake ChatIndepBrake ChatHandBrake
+@persist Spd [E O Weld]:entity
+@trigger all
+@model models/beer/wiremod/watersensor.mdl
+
+#[
+===============================================================================
+CORE DIESEL CONTROL V2.4
+Simple realistic diesel-electric controller by Looz#45.
+
+CONTROL LAYOUT
+    Active       Master isolation. When off, the entire controller is reset.
+    On_Signal    Momentary spring-return starter. Pulse 1 and release to 0.
+    Killswitch   Requests engine shutdown while leaving the brakes active.
+                 An optional alarm can sound before shutdown proceeds.
+    W / S        Increase or decrease the eight power notches.
+    A / D        Reverser: reverse / neutral / forward.
+    Space        Dynamic brake request. It immediately cancels traction and
+                 returns the power controller to idle. Hold Space for full
+                 dynamic braking, or use the chat command for a graduated value.
+
+STARTING
+    The engine can only be started with the reverser in neutral when
+    RequireNeutralStart is enabled. Refreshing or duping the E2 sets neutral.
+
+THROTTLE
+    Throttle is positive-only from 0 to 10. Direction is supplied separately
+    by Reverser, which is -1 reverse, 0 neutral or 1 forward.
+
+RPM
+    The default engine is the English Electric EE12CSVT:
+        IdleRPM = 450
+        FullRPM = 850
+    These values and the governor rise/fall rates are configurable below.
+    Every running notch has a nominal target RPM. A smooth configurable
+    governor hunt moves the actual target slightly above and below that value.
+
+CHAT COMMANDS
+    .cdc help
+    .cdc status
+    .cdc debug 0/1
+    .cdc clag 1-6
+    .cdc adhesion 0.1-1
+    .cdc rpm <idle> <full>
+    .cdc reset
+    .cdc start
+    .cdc stop
+    .cdc notch 0-8
+    .cdc throttle 0-10
+    .cdc reverser -1/0/1
+    .cdc dynbrake 0-1
+    .cdc maxspeed <mph>
+    .cdc mul <force multiplier>
+
+SHUTDOWN ALARM
+    When ShutdownAlarmEnabled = 1, Killswitch or .cdc stop first sounds the
+    configured alarm for ShutdownAlarmTime seconds. Traction is removed and
+    the engine returns to idle during the warning. The normal shutdown sound
+    then plays. Active = 0 remains an immediate full isolation.
+===============================================================================
+]#
+
+# =============================================================================
+# INITIALISATION AND CONFIGURATION
+# =============================================================================
+
+if(first() | duped()){
+    E = entity()
+    O = owner()
+
+    # -------------------------------------------------------------------------
+    # LOCOMOTIVE IDENTITY
+    # -------------------------------------------------------------------------
+
+    EngineName = "English Electric EE12CSVT"
+
+    # -------------------------------------------------------------------------
+    # PERFORMANCE
+    # -------------------------------------------------------------------------
+
+    MaxSpeedMPH = 75
+    MaxSpeed = MaxSpeedMPH * 17.6
+
+    # Main traction force multiplier.
+    Mul = 800
+
+    # Existing simple brake-force values.
+    BrakeScale = 30
+    HandBrakeScale = 16
+
+    # -------------------------------------------------------------------------
+    # ENGINE RPM / GOVERNOR
+    # -------------------------------------------------------------------------
+
+    # EE12CSVT basis. Change these for another engine.
+    IdleRPM = 450
+    FullRPM = 850
+
+    # RPM change per second. The interval is accounted for in the code.
+    RPMRiseRate = 32
+    RPMFallRate = 45
+    StartupRPMRiseRate = 180
+
+    # Natural governor hunting around every running notch target.
+    # RPMHuntAmount is the maximum RPM above or below the nominal target.
+    # The two frequencies overlap to avoid a perfectly repetitive idle.
+    RPMHuntEnabled = 1
+    RPMHuntAmount = 5
+    RPMHuntSpeed = 0.35
+    RPMHuntSecondarySpeed = 0.83
+
+    # Optional sound-pitch control.
+    # Leave SoundPitchRPM at 0 for sound packs with their own recorded notches.
+    SoundPitchRPM = 0
+    SoundPitchThrottle = 0
+
+    # Garry's Mod soundPitch values, not real engine RPM.
+    IdlePitch = 100
+    FullPitch = 112
+    ThrottlePitchAdd = 0
+
+    # -------------------------------------------------------------------------
+    # ENGINE SOUNDS
+    # -------------------------------------------------------------------------
+
+    Diesel_Sound = "wam98_sounds/trains/engines/ee12csvt_v2/idle.wav"
+    Notch1_Sound = "wam98_sounds/trains/engines/ee12csvt/notch1.wav"
+    Notch2_Sound = "wam98_sounds/trains/engines/ee12csvt/notch2.wav"
+    Notch3_Sound = "wam98_sounds/trains/engines/ee12csvt/notch3.wav"
+    Notch4_Sound = "wam98_sounds/trains/engines/ee12csvt/notch4.wav"
+    Notch5_Sound = "wam98_sounds/trains/engines/ee12csvt/notch5.wav"
+    Notch6_Sound = "wam98_sounds/trains/engines/ee12csvt/notch6.wav"
+    Notch7_Sound = "wam98_sounds/trains/engines/ee12csvt/notch7.wav"
+    Notch8_Sound = "wam98_sounds/trains/engines/ee12csvt/notch8.wav"
+
+    TrainBrake_Sound = "gsgtrainsounds/wheels/brake_3.wav"
+    IndepBrake_Sound = "gsgtrainsounds/wheels/brake_composite_7.wav"
+    HandBrake_Sound = "gsgtrainsounds/misc/airbrake3.wav"
+
+    InitSound = "chrispsssssssspack/r/hurrah.wav"
+    StartSound = "wam98_sounds/trains/engines/ee12csvt_v2/startup.wav"
+    ShutdownSound = "wam98_sounds/trains/engines/ee12csvt/shutdown.wav"
+
+    # Optional warning sounded before a normal engine shutdown.
+    ShutdownAlarmSound = "hazardous_sound_pack/hazardous-sounds/alarm1.wav"
+
+    # Sound channels:
+    # 0 idle, 1 powered notch, 2 startup
+    # 3 independent brake, 4 train brake, 5 handbrake
+    # 6 shutdown, 7 initialisation, 8 shutdown alarm
+
+    # -------------------------------------------------------------------------
+    # STARTUP
+    # -------------------------------------------------------------------------
+
+    StartupStage1Time = 4
+    StartupTotalTime = 7.5
+
+    Stage1Particle = "clag_4stroke_2"
+    Stage2Particle = "clag_4stroke_1"
+
+    RequireNeutralStart = 1
+
+    # -------------------------------------------------------------------------
+    # SHUTDOWN ALARM
+    # -------------------------------------------------------------------------
+
+    # 1 = sound an alarm before shutdown, 0 = shut down immediately.
+    ShutdownAlarmEnabled = 1
+
+    # Warning duration in seconds before the shutdown sound begins.
+    ShutdownAlarmTime = 5
+
+    # -------------------------------------------------------------------------
+    # EXHAUST / TRANSIENT CLAG
+    # -------------------------------------------------------------------------
+
+    ClagEnabled = 1
+
+    # Valid range for the standard particle set is normally 1 to 6.
+    # Four is the current moderate EE12CSVT setting.
+    MaxClagLevel = 4
+
+    IdleParticle = "clag_2stroke_2"
+
+    # Steady power cleans up below the maximum particle level.
+    SteadyClagFactor = 0.62
+
+    # Extra temporary clag from increasing the target notch.
+    ClagBoostPerNotch = 0.22
+
+    # Clag boost removed per second after the engine catches up.
+    ClagDecayRate = 0.24
+
+    # -------------------------------------------------------------------------
+    # DYNAMIC BRAKE
+    # -------------------------------------------------------------------------
+
+    DynamicBrakeEnabled = 1
+    DynBrakePower = 65000
+
+    # Dynamic braking fades away below MinMPH and reaches full effectiveness
+    # at FullMPH.
+    DynamicBrakeMinMPH = 4
+    DynamicBrakeFullMPH = 18
+
+    DynamicBrakeApplyRate = 2.5
+    DynamicBrakeReleaseRate = 3.5
+
+    # -------------------------------------------------------------------------
+    # WHEEL SLIP / ADHESION
+    # -------------------------------------------------------------------------
+
+    WheelSlipEnabled = 1
+
+    # 1 = good dry rail. Lower values make slipping easier.
+    Adhesion = 0.82
+
+    # Slip is primarily possible below this speed.
+    WheelSlipSpeedMPH = 18
+
+    # Base demand at which slip begins. Adhesion modifies this value.
+    WheelSlipThreshold = 0.62
+
+    # Fraction of traction retained during maximum slip.
+    WheelSlipForceMul = 0.32
+
+    WheelSlipRiseRate = 3.0
+    WheelSlipRecoverRate = 2.2
+
+    # RPM flare and extra clag under wheel slip.
+    WheelSlipRPMBoost = 28
+    WheelSlipClagBoost = 0.35
+
+    # -------------------------------------------------------------------------
+    # DEFAULT STATES
+    # -------------------------------------------------------------------------
+
+    EngineOn = 0
+    EngineLatched = 0
+    EngineRPM = 0
+    TargetRPM = 0
+    RPMHuntOffset = 0
+    EngineLoad = 0
+
+    StartupTimer = 0
+    StartupActive = 0
+    StartupStage = 0
+    MessageSent = 0
+
+    DelayedSignal = 0
+    Particle = ""
+    ParticleOn = 0
+    HeatwaveEmit = 0
+
+    # Refreshing or duping always starts in neutral.
+    Reverser = 0
+
+    PowerNotch = 0
+    TargetNotch = 0
+    PrevTargetNotch = 0
+    CurrentNotch = -1
+    SoundNotch = 0
+    PlayingNotch = 0
+    NextSoundChange = 0
+
+    Throttle = 0
+    Brake = 0
+    DynamicBrake = 0
+    DynamicBrakeRequest = 0
+    ChatDynamicBrake = 0
+
+    ClagBoost = 0
+    SmokeLevel = 0
+
+    WheelSlip = 0
+    SlipAmount = 0
+
+    ChatTrainBrake = 0
+    ChatIndepBrake = 0
+    ChatHandBrake = 0
+
+    ChatStartPulse = 0
+    ChatStopPulse = 0
+
+    ShutdownAlarmTimer = 0
+    ShutdownAlarmActive = 0
+    ShutdownTimeRemaining = 0
+    ShutdownPending = 0
+
+    DebugMode = 0
+    PrevWheelSlip = 0
+    PrevDynamicBrakeActive = 0
+    PrevStartupStage = 0
+
+    PrevOnSignal = 0
+    PrevActive = 0
+    PrevKillswitch = 0
+    PrevW = 0
+    PrevS = 0
+    PrevA = 0
+    PrevD = 0
+    PrevTB = 0
+    PrevIB = 0
+    PrevHB = 0
+
+    runOnChat(1)
+}
+
+interval(20)
+
+# =============================================================================
+# BASIC VEHICLE STATE
+# =============================================================================
+
+Weld = E:isWeldedTo()
+
+if(Active){
+    V = -E:velL():z()
+    Spd = abs(V)
+
+    MPH = toUnit("mph", Spd)
+    KPH = toUnit("km/h", Spd)
+}else{
+    V = 0
+    Spd = 0
+    MPH = 0
+    KPH = 0
+}
+
+# =============================================================================
+# MASTER ISOLATION, STARTER LATCH AND KILLSWITCH
+# =============================================================================
+
+StartPulse = (On_Signal & !PrevOnSignal) | ChatStartPulse
+StopPulse = (Killswitch & !PrevKillswitch) | ChatStopPulse
+PerformShutdown = 0
+
+if(Active & !PrevActive){
+    soundStop(7)
+    soundPlay(7, 1, InitSound)
+}
+
+# ----------------- COMPLETE MASTER ISOLATION -----------------
+
+if(!Active){
+    if(PrevActive){
+        soundStop(0)
+        soundStop(1)
+        soundStop(2)
+        soundStop(3)
+        soundStop(4)
+        soundStop(5)
+        soundStop(6)
+        soundStop(7)
+        soundStop(8)
+    }
+
+    EngineLatched = 0
+    EngineOn = 0
+
+    ShutdownAlarmTimer = 0
+    ShutdownAlarmActive = 0
+    ShutdownTimeRemaining = 0
+    ShutdownPending = 0
+
+    StartupActive = 0
+    StartupStage = 0
+    StartupTimer = 0
+    MessageSent = 0
+
+    DelayedSignal = 0
+    Particle = ""
+    ParticleOn = 0
+    HeatwaveEmit = 0
+
+    TargetNotch = 0
+    PrevTargetNotch = 0
+    PowerNotch = 0
+    PlayingNotch = 0
+    CurrentNotch = -1
+    SoundNotch = 0
+
+    Throttle = 0
+    DynamicBrake = 0
+    DynamicBrakeRequest = 0
+    ChatDynamicBrake = 0
+
+    EngineRPM = 0
+    TargetRPM = 0
+    EngineLoad = 0
+
+    ClagBoost = 0
+    WheelSlip = 0
+    SlipAmount = 0
+}
+else{
+
+    # ----------------- ENGINE STOP REQUEST -----------------
+
+    # A running engine can sound a configurable warning before shutdown.
+    # A startup that has not reached the running state is cancelled immediately.
+    if(StopPulse & (EngineLatched | StartupActive | EngineOn) & !ShutdownPending){
+        if(ShutdownAlarmEnabled & ShutdownAlarmTime > 0 & EngineOn){
+            ShutdownPending = 1
+            ShutdownAlarmActive = 1
+            ShutdownAlarmTimer = 0
+            ShutdownTimeRemaining = ShutdownAlarmTime
+
+            # Remove traction immediately and let the engine return to idle
+            # while the warning alarm sounds.
+            TargetNotch = 0
+            PrevTargetNotch = 0
+            DynamicBrakeRequest = 0
+            ChatDynamicBrake = 0
+
+            soundStop(8)
+            soundPlay(8, 0, ShutdownAlarmSound)
+
+            print("CDC: Shutdown warning alarm active")
+        }else{
+            PerformShutdown = 1
+        }
+    }
+
+    # ----------------- SHUTDOWN ALARM TIMER -----------------
+
+    if(ShutdownPending){
+        TargetNotch = 0
+        DynamicBrakeRequest = 0
+        ChatDynamicBrake = 0
+
+        ShutdownAlarmTimer += 0.02
+        ShutdownTimeRemaining = max(ShutdownAlarmTime - ShutdownAlarmTimer, 0)
+
+        if(ShutdownAlarmTimer >= ShutdownAlarmTime){
+            soundStop(8)
+            ShutdownAlarmActive = 0
+            ShutdownTimeRemaining = 0
+            PerformShutdown = 1
+
+            if(DebugMode){
+                print("CDC Debug: Shutdown alarm finished")
+            }
+        }
+    }
+
+    # ----------------- PERFORM ENGINE SHUTDOWN -----------------
+
+    if(PerformShutdown){
+        soundStop(0)
+        soundStop(1)
+        soundStop(2)
+        soundStop(8)
+        soundStop(6)
+        soundPlay(6, 0, ShutdownSound)
+
+        EngineLatched = 0
+        EngineOn = 0
+
+        ShutdownAlarmTimer = 0
+        ShutdownAlarmActive = 0
+        ShutdownTimeRemaining = 0
+        ShutdownPending = 0
+
+        StartupActive = 0
+        StartupStage = 0
+        StartupTimer = 0
+        MessageSent = 0
+
+        DelayedSignal = 0
+        Particle = ""
+        ParticleOn = 0
+        HeatwaveEmit = 0
+
+        TargetNotch = 0
+        PrevTargetNotch = 0
+        PowerNotch = 0
+        PlayingNotch = 0
+        CurrentNotch = -1
+        SoundNotch = 0
+
+        Throttle = 0
+        DynamicBrake = 0
+        DynamicBrakeRequest = 0
+        ChatDynamicBrake = 0
+
+        ClagBoost = 0
+        WheelSlip = 0
+        SlipAmount = 0
+    }
+
+    # ----------------- MOMENTARY START REQUEST -----------------
+
+    if(StartPulse & !Killswitch & !EngineLatched & !ShutdownPending){
+
+        if(RequireNeutralStart & Reverser != 0){
+            print("CDC: Cannot start engine - reverser must be in neutral")
+        }
+        else{
+            EngineLatched = 1
+            EngineOn = 0
+
+            StartupActive = 1
+            StartupStage = 1
+            StartupTimer = 0
+            MessageSent = 0
+
+            DelayedSignal = 0
+            Particle = Stage1Particle
+            ParticleOn = 1
+            HeatwaveEmit = 0
+
+            TargetNotch = 0
+            PrevTargetNotch = 0
+            PowerNotch = 0
+            PlayingNotch = 0
+            CurrentNotch = -1
+            SoundNotch = 0
+
+            DynamicBrake = 0
+            DynamicBrakeRequest = 0
+            ChatDynamicBrake = 0
+
+            EngineRPM = 0
+            TargetRPM = 0
+            ClagBoost = 0
+
+            soundStop(0)
+            soundStop(1)
+            soundStop(2)
+            soundStop(6)
+            soundStop(8)
+            soundPlay(2, 0, StartSound)
+
+            if(DebugMode){
+                print("CDC Debug: Startup sequence entered")
+            }
+        }
+    }
+
+    # ----------------- STARTUP SEQUENCE -----------------
+
+    if(StartupActive & EngineLatched & !Killswitch){
+
+        # Stage 1: cranking.
+        if(StartupStage == 1){
+            Particle = Stage1Particle
+            ParticleOn = 1
+            HeatwaveEmit = 0
+
+            TargetRPM = IdleRPM * 0.35
+
+            if(EngineRPM < TargetRPM){
+                EngineRPM += StartupRPMRiseRate * 0.02
+            }
+
+            EngineRPM = clamp(EngineRPM, 0, TargetRPM)
+            StartupTimer += 0.02
+
+            if(StartupTimer >= StartupStage1Time){
+                StartupStage = 2
+                StartupTimer = 0
+            }
+        }
+
+        # Stage 2: firing and rising to idle.
+        elseif(StartupStage == 2){
+            Particle = Stage2Particle
+            ParticleOn = 1
+            HeatwaveEmit = 1
+
+            TargetRPM = IdleRPM
+
+            if(EngineRPM < TargetRPM){
+                EngineRPM += StartupRPMRiseRate * 0.02
+            }
+
+            EngineRPM = clamp(EngineRPM, 0, IdleRPM)
+            StartupTimer += 0.02
+
+            if(StartupTimer >= (StartupTotalTime - StartupStage1Time)){
+                StartupStage = 3
+                StartupActive = 0
+                StartupTimer = 0
+
+                EngineOn = 1
+                EngineRPM = IdleRPM
+                TargetRPM = IdleRPM
+                DelayedSignal = 1
+
+                CurrentNotch = -1
+                PlayingNotch = 0
+                SoundNotch = 0
+                NextSoundChange = curtime()
+
+                soundStop(2)
+
+                if(!MessageSent){
+                    print("CDC: Startup procedure finished")
+                    MessageSent = 1
+                }
+            }
+        }
+    }
+
+    if(EngineOn & EngineLatched){
+        StartupStage = 3
+        DelayedSignal = 1
+        HeatwaveEmit = 1
+    }else{
+        if(!StartupActive){
+            DelayedSignal = 0
+        }
+    }
+}
+
+# One-shot internal chat commands.
+ChatStartPulse = 0
+ChatStopPulse = 0
+
+# =============================================================================
+# DRIVER CONTROLS
+# =============================================================================
+
+if(Active){
+
+    # ----------------- REVERSER -----------------
+
+    # Hold neutral throughout the startup sequence. Once running or fully off,
+    # A and D can move the reverser normally.
+    if(StartupActive){
+        Reverser = 0
+    }else{
+        if(A & !PrevA){
+            Reverser -= 1
+        }
+
+        if(D & !PrevD){
+            Reverser += 1
+        }
+
+        Reverser = clamp(Reverser, -1, 1)
+    }
+
+    # ----------------- DYNAMIC BRAKE REQUEST -----------------
+
+    if(DynamicBrakeEnabled){
+        DynamicBrakeRequest = clamp(max(Space, ChatDynamicBrake), 0, 1)
+    }else{
+        DynamicBrakeRequest = 0
+        ChatDynamicBrake = 0
+    }
+
+    # Any dynamic brake request immediately cancels traction and commands idle.
+    if(DynamicBrakeRequest > 0){
+        TargetNotch = 0
+    }
+
+    # ----------------- THROTTLE -----------------
+
+    if(EngineOn & !ShutdownPending){
+
+        # Throttle input is ignored while dynamic braking is requested.
+        if(DynamicBrakeRequest <= 0){
+
+            if(W & !PrevW & !->Throttle_OVR){
+                TargetNotch += 1
+            }
+
+            if(S & !PrevS & !->Throttle_OVR){
+                TargetNotch -= 1
+            }
+
+            # Positive-only override. Direction remains separate.
+            if(->Throttle_OVR){
+                TargetNotch = round(clamp(Throttle_OVR, 0, 10) / 10 * 8)
+            }
+        }
+
+        TargetNotch = clamp(TargetNotch, 0, 8)
+
+        if(PowerNotch < TargetNotch){
+            PowerNotch += 0.035
+        }
+        elseif(PowerNotch > TargetNotch){
+            PowerNotch -= 0.055
+        }
+
+        PowerNotch = clamp(PowerNotch, 0, 8)
+    }else{
+        TargetNotch = 0
+        PowerNotch = 0
+    }
+
+    EngineLoad = clamp(PowerNotch / 8, 0, 1)
+    Throttle = clamp(PowerNotch * 1.25, 0, 10)
+
+}else{
+    TargetNotch = 0
+    PowerNotch = 0
+    PlayingNotch = 0
+    EngineLoad = 0
+    Throttle = 0
+    DynamicBrakeRequest = 0
+}
+
+# =============================================================================
+# TRANSIENT CLAG BOOST FROM THROTTLE CHANGES
+# =============================================================================
+
+NotchIncrease = max(TargetNotch - PrevTargetNotch, 0)
+
+if(ClagEnabled & EngineOn & NotchIncrease > 0){
+    ClagBoost += NotchIncrease * ClagBoostPerNotch
+    ClagBoost = clamp(ClagBoost, 0, 1)
+}
+
+if(ClagBoost > 0){
+    ClagBoost -= ClagDecayRate * 0.02
+    ClagBoost = max(ClagBoost, 0)
+}
+
+PrevTargetNotch = TargetNotch
+
+# =============================================================================
+# SIMPLE BRAKES
+# =============================================================================
+
+if(Active){
+    IndepBrakeFinal = IndepBrake
+    TrainBrakeFinal = TrainBrake
+    HandBrakeFinal = HandBrake
+
+    if(ChatIndepBrake){ IndepBrakeFinal = 1 }
+    if(ChatTrainBrake){ TrainBrakeFinal = 1 }
+    if(ChatHandBrake){ HandBrakeFinal = 1 }
+
+    Brake = clamp(max(IndepBrakeFinal, TrainBrakeFinal, HandBrakeFinal), 0, 1)
+    Braking = Brake
+
+    if(IndepBrakeFinal != PrevIB){
+        if(IndepBrakeFinal){
+            print("Independent Brake Applied")
+            soundPlay(3, 0, IndepBrake_Sound)
+        }else{
+            print("Independent Brake Released")
+            soundStop(3)
+        }
+        PrevIB = IndepBrakeFinal
+    }
+
+    if(TrainBrakeFinal != PrevTB){
+        if(TrainBrakeFinal){
+            print("Train Brake Applied")
+            soundPlay(4, 0, TrainBrake_Sound)
+        }else{
+            print("Train Brake Released")
+            soundStop(4)
+        }
+        PrevTB = TrainBrakeFinal
+    }
+
+    if(HandBrakeFinal != PrevHB){
+        if(HandBrakeFinal){
+            print("Handbrake Applied")
+            soundPlay(5, 0, HandBrake_Sound)
+        }else{
+            print("Handbrake Released")
+            soundStop(5)
+        }
+        PrevHB = HandBrakeFinal
+    }
+}else{
+    IndepBrakeFinal = 0
+    TrainBrakeFinal = 0
+    HandBrakeFinal = 0
+
+    Brake = 0
+    Braking = 0
+
+    soundStop(3)
+    soundStop(4)
+    soundStop(5)
+
+    PrevIB = 0
+    PrevTB = 0
+    PrevHB = 0
+}
+
+# =============================================================================
+# GOVERNOR, REAL RPM AND ENGINE SOUNDS
+# =============================================================================
+
+if(Active & EngineOn & EngineLatched){
+
+    # The recorded sound notch changes at a governor-like rate.
+    if(curtime() >= NextSoundChange){
+        if(PlayingNotch < TargetNotch){
+            PlayingNotch += 1
+            NextSoundChange = curtime() + 0.35
+        }
+        elseif(PlayingNotch > TargetNotch){
+            PlayingNotch -= 1
+            NextSoundChange = curtime() + 0.20
+        }
+    }
+
+    PlayingNotch = clamp(PlayingNotch, 0, 8)
+    SoundNotch = PlayingNotch
+
+    if(SoundNotch != CurrentNotch){
+        soundStop(0)
+        soundStop(1)
+
+        switch(SoundNotch){
+            case 0,
+                soundPlay(0, 0, Diesel_Sound)
+            case 1,
+                soundPlay(1, 0, Notch1_Sound)
+            case 2,
+                soundPlay(1, 0, Notch2_Sound)
+            case 3,
+                soundPlay(1, 0, Notch3_Sound)
+            case 4,
+                soundPlay(1, 0, Notch4_Sound)
+            case 5,
+                soundPlay(1, 0, Notch5_Sound)
+            case 6,
+                soundPlay(1, 0, Notch6_Sound)
+            case 7,
+                soundPlay(1, 0, Notch7_Sound)
+            case 8,
+                soundPlay(1, 0, Notch8_Sound)
+        }
+
+        CurrentNotch = SoundNotch
+    }
+
+    # Real configurable governor RPM.
+    # TargetRPM remains the nominal target for the selected notch.
+    RPMRange = max(FullRPM - IdleRPM, 1)
+    TargetRPM = IdleRPM + RPMRange * (PlayingNotch / 8)
+
+    # Smooth natural governor hunting around every notch target.
+    # Two overlapping waves prevent the movement from looking perfectly even.
+    if(RPMHuntEnabled){
+        HuntWave1 = sin(curtime() * RPMHuntSpeed * 360)
+        HuntWave2 = sin(curtime() * RPMHuntSecondarySpeed * 360 + 117)
+
+        RPMHuntOffset = HuntWave1 * RPMHuntAmount * 0.72
+        RPMHuntOffset += HuntWave2 * RPMHuntAmount * 0.28
+        RPMHuntOffset = clamp(RPMHuntOffset, -RPMHuntAmount, RPMHuntAmount)
+    }else{
+        RPMHuntOffset = 0
+    }
+
+    # The engine follows the hunted target. Wheel slip can additionally flare RPM.
+    GovernorTargetRPM = TargetRPM + RPMHuntOffset
+    GovernorTargetRPM += SlipAmount * WheelSlipRPMBoost
+
+    MinRunningRPM = max(IdleRPM - RPMHuntAmount, 0)
+    MaxRunningRPM = FullRPM + WheelSlipRPMBoost + RPMHuntAmount
+    GovernorTargetRPM = clamp(GovernorTargetRPM, MinRunningRPM, MaxRunningRPM)
+
+    if(EngineRPM < GovernorTargetRPM){
+        EngineRPM += RPMRiseRate * 0.02
+    }
+    elseif(EngineRPM > GovernorTargetRPM){
+        EngineRPM -= RPMFallRate * 0.02
+    }
+
+    EngineRPM = clamp(EngineRPM, MinRunningRPM, MaxRunningRPM)
+
+    # Convert real RPM to the soundPitch scale only when enabled.
+    RPMSoundFraction = clamp((EngineRPM - IdleRPM) / RPMRange, 0, 1)
+    Pitch = IdlePitch + (FullPitch - IdlePitch) * RPMSoundFraction
+
+    if(SoundPitchThrottle){
+        Pitch += EngineLoad * ThrottlePitchAdd
+    }
+
+    if(SoundPitchRPM | SoundPitchThrottle){
+        if(SoundNotch == 0){
+            soundPitch(0, clamp(Pitch, 1, 255))
+        }else{
+            soundPitch(1, clamp(Pitch, 1, 255))
+        }
+    }
+
+}else{
+    soundStop(0)
+    soundStop(1)
+
+    CurrentNotch = -1
+    SoundNotch = 0
+    PlayingNotch = 0
+
+    if(!StartupActive){
+        TargetRPM = 0
+        RPMHuntOffset = 0
+
+        if(EngineRPM > 0){
+            EngineRPM -= RPMFallRate * 0.02
+            EngineRPM = max(EngineRPM, 0)
+        }
+    }
+}
+
+# =============================================================================
+# WHEEL SLIP / ADHESION MODEL
+# =============================================================================
+
+if(Active & EngineOn & EngineLatched & !ShutdownPending & WheelSlipEnabled
+    & Reverser != 0 & DynamicBrakeRequest <= 0){
+
+    # High power at low speed creates the greatest adhesion demand.
+    LowSpeedFactor = 1 - clamp(MPH / max(WheelSlipSpeedMPH, 1), 0, 1)
+    AdhesionDemand = EngineLoad * LowSpeedFactor
+
+    # Lower Adhesion lowers the effective threshold and makes slip easier.
+    EffectiveSlipThreshold = WheelSlipThreshold * clamp(Adhesion, 0.1, 1)
+
+    if(AdhesionDemand > EffectiveSlipThreshold){
+        SlipTarget = clamp(
+            (AdhesionDemand - EffectiveSlipThreshold)
+            / max(1 - EffectiveSlipThreshold, 0.01),
+            0,
+            1
+        )
+    }else{
+        SlipTarget = 0
+    }
+
+    if(SlipAmount < SlipTarget){
+        SlipAmount += WheelSlipRiseRate * 0.02
+    }
+    elseif(SlipAmount > SlipTarget){
+        SlipAmount -= WheelSlipRecoverRate * 0.02
+    }
+
+    SlipAmount = clamp(SlipAmount, 0, 1)
+}else{
+    SlipAmount -= WheelSlipRecoverRate * 0.02
+    SlipAmount = max(SlipAmount, 0)
+}
+
+WheelSlip = SlipAmount > 0.05
+
+# =============================================================================
+# DYNAMIC BRAKE APPLICATION
+# =============================================================================
+
+# Dynamic braking is interlocked until the power controller reaches idle.
+if(Active & EngineOn & DynamicBrakeEnabled & PowerNotch <= 0.05
+    & PlayingNotch == 0){
+    DynamicBrakeTarget = DynamicBrakeRequest
+}else{
+    DynamicBrakeTarget = 0
+}
+
+if(DynamicBrake < DynamicBrakeTarget){
+    DynamicBrake += DynamicBrakeApplyRate * 0.02
+}
+elseif(DynamicBrake > DynamicBrakeTarget){
+    DynamicBrake -= DynamicBrakeReleaseRate * 0.02
+}
+
+DynamicBrake = clamp(DynamicBrake, 0, 1)
+DynamicBrakeActive = DynamicBrake > 0.02
+
+# =============================================================================
+# RUNNING EXHAUST / CLAG
+# =============================================================================
+
+# Startup particles have priority over normal running exhaust.
+if(!StartupActive){
+    if(Active & EngineOn & EngineLatched){
+        ParticleOn = 1
+        HeatwaveEmit = 1
+
+        if(!ClagEnabled | Throttle < 0.1){
+            Particle = IdleParticle
+            SmokeLevel = 0
+        }else{
+            # Steady load produces moderate smoke. Fast throttle changes and
+            # wheel slip temporarily drive the level toward MaxClagLevel.
+            ClagIntensity = EngineLoad * SteadyClagFactor
+            ClagIntensity += ClagBoost
+            ClagIntensity += SlipAmount * WheelSlipClagBoost
+            ClagIntensity = clamp(ClagIntensity, 0.01, 1)
+
+            SmokeLevel = ceil(ClagIntensity * MaxClagLevel)
+            SmokeLevel = clamp(SmokeLevel, 1, MaxClagLevel)
+
+            Particle = "clag_4stroke_" + SmokeLevel
+        }
+    }else{
+        Particle = ""
+        ParticleOn = 0
+        HeatwaveEmit = 0
+        SmokeLevel = 0
+    }
+}
+
+# =============================================================================
+# TRACTION, WHEEL SLIP AND BRAKING FORCE
+# =============================================================================
+
+if(Active & Weld:isValid()){
+    Dir = -E:up()
+    Direction = Reverser
+
+    Power = clamp((PowerNotch + PlayingNotch) / 16, 0, 1)
+
+    # Dynamic-brake request immediately removes traction, even while the
+    # governor and PowerNotch are returning to idle.
+    if(!EngineOn | !EngineLatched | Killswitch | ShutdownPending | Direction == 0
+        | Power <= 0.02 | DynamicBrakeRequest > 0){
+        DriveForce = 0
+    }else{
+        MaxSpeedFade = 1 - clamp(Spd / MaxSpeed, 0, 1)
+        SpeedPower = clamp(0.20 + MaxSpeedFade * 0.80, 0, 1)
+
+        # Slip progressively reduces usable rail force.
+        SlipForceFactor = 1 - SlipAmount * (1 - WheelSlipForceMul)
+        SlipForceFactor = clamp(SlipForceFactor, WheelSlipForceMul, 1)
+
+        DriveForce = Direction * Power * Mul * 900 * SpeedPower
+        DriveForce *= SlipForceFactor
+    }
+
+    Weld:applyForce(Dir * DriveForce)
+
+    BrakeDir = -Dir * sign(V)
+
+    if(IndepBrakeFinal){
+        Weld:applyForce(BrakeDir * abs(V) * BrakeScale * 120)
+    }
+
+    if(TrainBrakeFinal){
+        Weld:applyForce(BrakeDir * abs(V) * BrakeScale * 120)
+    }
+
+    if(HandBrakeFinal){
+        Weld:applyForce(BrakeDir * abs(V) * HandBrakeScale * 160)
+    }
+
+    if(DynamicBrake > 0 & Spd > 0){
+        DynSpeedRange = max(DynamicBrakeFullMPH - DynamicBrakeMinMPH, 1)
+        DynSpeedFactor = clamp((MPH - DynamicBrakeMinMPH) / DynSpeedRange, 0, 1)
+
+        Weld:applyForce(
+            BrakeDir
+            * DynamicBrake
+            * DynBrakePower
+            * DynSpeedFactor
+        )
+    }
+}
+
+# =============================================================================
+# DEBUG STATE CHANGES
+# =============================================================================
+
+if(DebugMode){
+    if(WheelSlip != PrevWheelSlip){
+        if(WheelSlip){
+            print("CDC Debug: WHEEL SLIP - amount " + round(SlipAmount * 100):toString() + "%")
+        }else{
+            print("CDC Debug: Wheel slip recovered")
+        }
+    }
+
+    if(DynamicBrakeActive != PrevDynamicBrakeActive){
+        if(DynamicBrakeActive){
+            print("CDC Debug: Dynamic brake active")
+        }else{
+            print("CDC Debug: Dynamic brake released")
+        }
+    }
+
+    if(StartupStage != PrevStartupStage){
+        print("CDC Debug: Startup stage " + StartupStage:toString())
+    }
+}
+
+PrevWheelSlip = WheelSlip
+PrevDynamicBrakeActive = DynamicBrakeActive
+PrevStartupStage = StartupStage
+
+# =============================================================================
+# CHAT CONTROL
+# =============================================================================
+
+if(chatClk(O)){
+    Sentence = O:lastSaid():explode(" ")
+    CMD = Sentence[1,string]
+    SUB = Sentence[2,string]
+
+    # ----------------- NEW CDC COMMAND GROUP -----------------
+
+    if(CMD == ".cdc"){
+        hideChat(1)
+
+        if(SUB == "help"){
+            print("CDC: .cdc status | debug 0/1 | clag 1-6 | adhesion 0.1-1")
+            print("CDC: .cdc rpm <idle> <full> | reset | start | stop")
+            print("CDC: .cdc notch 0-8 | throttle 0-10 | reverser -1/0/1")
+            print("CDC: .cdc dynbrake 0-1 | maxspeed <mph> | mul <value>")
+        }
+
+        elseif(SUB == "status"){
+            print("CDC: " + EngineName)
+            print("Speed " + round(MPH):toString() + " MPH | Reverser " + Reverser:toString()
+                + " | Notch " + round(PowerNotch):toString()
+                + " | Throttle " + round(Throttle):toString())
+            print("Engine " + EngineOn:toString()
+                + " | RPM " + round(EngineRPM):toString()
+                + "/" + round(TargetRPM):toString()
+                + " (hunt " + round(RPMHuntOffset, 1):toString() + ")"
+                + " | Load " + round(EngineLoad * 100):toString() + "%")
+            print("Clag " + SmokeLevel:toString()
+                + "/" + MaxClagLevel:toString()
+                + " | Slip " + round(SlipAmount * 100):toString() + "%"
+                + " | Dynamic " + round(DynamicBrake * 100):toString() + "%")
+            print("Shutdown alarm " + ShutdownAlarmActive:toString()
+                + " | Remaining " + round(ShutdownTimeRemaining, 1):toString() + " sec")
+        }
+
+        elseif(SUB == "debug"){
+            DebugMode = clamp(round(Sentence[3,string]:toNumber()), 0, 1)
+            print("CDC: Debug mode " + DebugMode:toString())
+        }
+
+        elseif(SUB == "clag"){
+            MaxClagLevel = clamp(round(Sentence[3,string]:toNumber()), 1, 6)
+            print("CDC: Maximum clag particle set to " + MaxClagLevel:toString())
+        }
+
+        elseif(SUB == "adhesion"){
+            Adhesion = clamp(Sentence[3,string]:toNumber(), 0.1, 1)
+            print("CDC: Adhesion set to " + round(Adhesion * 100):toString() + "%")
+        }
+
+        elseif(SUB == "rpm"){
+            NewIdleRPM = max(Sentence[3,string]:toNumber(), 1)
+            NewFullRPM = max(Sentence[4,string]:toNumber(), NewIdleRPM + 1)
+
+            IdleRPM = NewIdleRPM
+            FullRPM = NewFullRPM
+
+            print("CDC: RPM range set to " + round(IdleRPM):toString()
+                + "-" + round(FullRPM):toString() + " RPM")
+        }
+
+        elseif(SUB == "reset"){
+            TargetNotch = 0
+            PrevTargetNotch = 0
+            PowerNotch = 0
+            PlayingNotch = 0
+            Throttle = 0
+
+            Reverser = 0
+
+            DynamicBrake = 0
+            DynamicBrakeRequest = 0
+            ChatDynamicBrake = 0
+
+            ClagBoost = 0
+            SlipAmount = 0
+            WheelSlip = 0
+
+            ChatTrainBrake = 0
+            ChatIndepBrake = 0
+            ChatHandBrake = 0
+
+            print("CDC: Driver controls reset - reverser neutral")
+        }
+
+        elseif(SUB == "start"){
+            if(!Active){
+                print("CDC: Cannot start - master Active is OFF")
+            }
+            elseif(Killswitch){
+                print("CDC: Cannot start - Killswitch is ON")
+            }
+            elseif(EngineLatched){
+                print("CDC: Engine is already starting or running")
+            }
+            elseif(RequireNeutralStart & Reverser != 0){
+                print("CDC: Cannot start - reverser must be neutral")
+            }
+            else{
+                ChatStartPulse = 1
+                print("CDC: Starter pulse requested")
+            }
+        }
+
+        elseif(SUB == "stop"){
+            ChatStopPulse = 1
+            print("CDC: Engine stop requested")
+        }
+
+        elseif(SUB == "notch"){
+            if(->Throttle_OVR){
+                print("CDC: Throttle override input is wired")
+            }
+            elseif(DynamicBrakeRequest > 0){
+                print("CDC: Release dynamic brake before applying power")
+            }
+            else{
+                TargetNotch = clamp(round(Sentence[3,string]:toNumber()), 0, 8)
+                print("CDC: Target notch " + TargetNotch:toString())
+            }
+        }
+
+        elseif(SUB == "throttle"){
+            if(->Throttle_OVR){
+                print("CDC: Throttle override input is wired")
+            }
+            elseif(DynamicBrakeRequest > 0){
+                print("CDC: Release dynamic brake before applying power")
+            }
+            else{
+                ChatThrottle = clamp(Sentence[3,string]:toNumber(), 0, 10)
+                TargetNotch = round(ChatThrottle / 10 * 8)
+                print("CDC: Target throttle " + round(ChatThrottle):toString())
+            }
+        }
+
+        elseif(SUB == "reverser"){
+            Reverser = clamp(round(Sentence[3,string]:toNumber()), -1, 1)
+            print("CDC: Reverser " + Reverser:toString())
+        }
+
+        elseif(SUB == "dynbrake"){
+            ChatDynamicBrake = clamp(Sentence[3,string]:toNumber(), 0, 1)
+
+            if(ChatDynamicBrake > 0){
+                TargetNotch = 0
+            }
+
+            print("CDC: Dynamic brake request "
+                + round(ChatDynamicBrake * 100):toString() + "%")
+        }
+
+        elseif(SUB == "maxspeed"){
+            MaxSpeedMPH = max(Sentence[3,string]:toNumber(), 1)
+            MaxSpeed = MaxSpeedMPH * 17.6
+            print("CDC: Maximum speed " + round(MaxSpeedMPH):toString() + " MPH")
+        }
+
+        elseif(SUB == "mul"){
+            Mul = max(Sentence[3,string]:toNumber(), 0)
+            print("CDC: Force multiplier " + round(Mul):toString())
+        }
+
+        else{
+            print("CDC: Unknown command. Use .cdc help")
+        }
+    }
+
+    # ----------------- LEGACY SHORT COMMANDS -----------------
+
+    elseif(CMD == ".throttle"){
+        hideChat(1)
+
+        if(->Throttle_OVR){
+            print("Chat: Throttle override input is wired")
+        }
+        elseif(DynamicBrakeRequest > 0){
+            print("Chat: Release dynamic brake before applying power")
+        }
+        else{
+            ChatThrottle = clamp(Sentence[2,string]:toNumber(), 0, 10)
+            TargetNotch = round(ChatThrottle / 10 * 8)
+            print("Chat: Target diesel throttle set to " + round(ChatThrottle):toString())
+        }
+    }
+
+    elseif(CMD == ".notch"){
+        hideChat(1)
+
+        if(->Throttle_OVR){
+            print("Chat: Throttle override input is wired")
+        }
+        elseif(DynamicBrakeRequest > 0){
+            print("Chat: Release dynamic brake before applying power")
+        }
+        else{
+            TargetNotch = clamp(round(Sentence[2,string]:toNumber()), 0, 8)
+            print("Chat: Target notch set to " + TargetNotch:toString())
+        }
+    }
+
+    elseif(CMD == ".reverser"){
+        Reverser = clamp(round(Sentence[2,string]:toNumber()), -1, 1)
+        hideChat(1)
+        print("Chat: Reverser set to " + Reverser:toString())
+    }
+
+    elseif(CMD == ".dynbrake"){
+        ChatDynamicBrake = clamp(Sentence[2,string]:toNumber(), 0, 1)
+
+        if(ChatDynamicBrake > 0){
+            TargetNotch = 0
+        }
+
+        hideChat(1)
+        print("Chat: Dynamic brake request "
+            + round(ChatDynamicBrake * 100):toString() + "%")
+    }
+
+    elseif(CMD == ".brake"){
+        BrakeType = Sentence[2,string]:toNumber()
+        BrakeState = -1
+
+        if(Sentence[3,string] != ""){
+            BrakeState = Sentence[3,string]:toNumber()
+        }
+
+        if(BrakeType == 1){
+            if(BrakeState == -1){ ChatIndepBrake = 1 - ChatIndepBrake }
+            else{ ChatIndepBrake = clamp(BrakeState, 0, 1) }
+
+            if(ChatIndepBrake){ print("Chat: Independent Brake ON") }
+            else{ print("Chat: Independent Brake OFF") }
+        }
+
+        elseif(BrakeType == 2){
+            if(BrakeState == -1){ ChatTrainBrake = 1 - ChatTrainBrake }
+            else{ ChatTrainBrake = clamp(BrakeState, 0, 1) }
+
+            if(ChatTrainBrake){ print("Chat: Train Brake ON") }
+            else{ print("Chat: Train Brake OFF") }
+        }
+
+        elseif(BrakeType == 3){
+            if(BrakeState == -1){ ChatHandBrake = 1 - ChatHandBrake }
+            else{ ChatHandBrake = clamp(BrakeState, 0, 1) }
+
+            if(ChatHandBrake){ print("Chat: Handbrake ON") }
+            else{ print("Chat: Handbrake OFF") }
+        }
+
+        hideChat(1)
+    }
+
+    elseif(CMD == ".status"){
+        hideChat(1)
+        print("CDC: Use .cdc status for the expanded report")
+    }
+
+    elseif(CMD == ".engine"){
+        EngineCommand = clamp(round(Sentence[2,string]:toNumber()), 0, 1)
+        hideChat(1)
+
+        if(EngineCommand){
+            if(!Active){
+                print("Chat: CDC is isolated - Active is OFF")
+            }
+            elseif(Killswitch){
+                print("Chat: Cannot start while Killswitch is ON")
+            }
+            elseif(EngineLatched){
+                print("Chat: Engine is already starting or running")
+            }
+            elseif(RequireNeutralStart & Reverser != 0){
+                print("Chat: Cannot start - reverser must be neutral")
+            }
+            else{
+                ChatStartPulse = 1
+                print("Chat: Starter pulse requested")
+            }
+        }else{
+            ChatStopPulse = 1
+            print("Chat: Engine stop requested")
+        }
+    }
+}
+
+# =============================================================================
+# STORE EDGE STATES AND OUTPUT OPS
+# =============================================================================
+
+PrevOnSignal = On_Signal
+PrevActive = Active
+PrevKillswitch = Killswitch
+PrevW = W
+PrevS = S
+PrevA = A
+PrevD = D
+
+OPS = ops()
