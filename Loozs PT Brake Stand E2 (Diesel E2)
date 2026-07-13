@@ -1,0 +1,152 @@
+@name Loozs PT Brake Stand E2 (Diesel E2)
+@inputs ABNotch LBNotch 
+@outputs 
+@persist E:entity Scale 
+@trigger ABNotch LBNotch
+
+
+    entity():setAlpha(0)
+if(first()|dupefinished()){
+
+#Config
+
+#Base
+BaseMat1="chrisautism/locotexs/acrylicprotoweathered"
+BaseMat2="chrisautism/locotexs/acrylicprotoweathered"
+BaseMat3="chrisautism/locotexs/acrylicprotoweathered"
+
+BaseColor=vec(143,139,130)
+
+#Train Brake
+TrainBrakeLeverMat1="models/proppertextures/acrylic_worn"
+TrainBrakeLeverMat2=""
+TrainBrakeLeverMat3=""
+TrainBrakeLeverMat4=""
+TrainBrakeLeverColor=vec(120,30,20)
+
+#Loco Brake
+LocoBrakeLeverMat1="models/proppertextures/acrylic_worn"
+LocoBrakeLeverMat2=""
+LocoBrakeLeverMat3=""
+LocoBrakeLeverMat4=""
+LocoBrakeLeverColor=vec(36)
+
+
+
+    Material="models/proppertextures/acrylic"
+    Material2="models/proppertextures/acrylic"  
+    Material3="models/proppertextures/potmetal"
+    Material4="models/proppertextures/plastic_eggshell_black"
+    Material5="models/proppertextures/invisible"
+
+Scale = 0.3
+
+#End of Config
+
+E = entity()
+
+
+
+#Base 
+#[
+A = 1
+holoCreate(A)
+holoModel(A,"models/props_pipes/valve002.mdl")
+holoParent(A,E)
+holoPos(A,E:toWorld(vec(0,0,-55)*Scale))
+holoAng(A,E:toWorld(ang(0,-69,0)))
+holoColor(A,BaseColor)
+holoScale(A,vec(0.7)*Scale)
+holoEntity(A):setSubMaterial(1,BaseMat1)
+holoEntity(A):setSubMaterial(2,BaseMat2)
+holoEntity(A):setSubMaterial(3,BaseMat3)
+A = 2
+holoCreate(A)
+holoModel(A,"models/props_pipes/valve002.mdl")
+holoParent(A,E)
+holoPos(A,E:toWorld(vec(-6.3,16.25,-55)*Scale))
+holoAng(A,E:toWorld(ang(0,111,0)))
+holoColor(A,BaseColor)
+holoScale(A,vec(0.7)*Scale)
+holoEntity(A):setSubMaterial(1,BaseMat1)
+holoEntity(A):setSubMaterial(2,BaseMat2)
+holoEntity(A):setSubMaterial(3,BaseMat3)]#
+A = 3
+holoCreate(A)
+holoModel(A,"models/jazzie/models/ba/drivers_valve_base_red.mdl")
+holoParent(A,E)
+holoPos(A,E:toWorld(vec(-6.3,16.25,-2)*Scale))
+holoAng(A,E:toWorld(ang(0,111,0)))
+holoColor(A,BaseColor)
+holoScale(A,vec(1.75)*Scale)
+holoEntity(A):setSubMaterial(1,BaseMat1)
+holoEntity(A):setSubMaterial(2,Material3) # metal
+A = 4
+holoCreate(A)
+holoModel(A,"models/zexciv_train_stuff/details/usa/emd/emdfans.mdl")
+holoParent(A,E)
+holoPos(A,E:toWorld(vec(0,0,0)*Scale))
+holoAng(A,E:toWorld(ang(0,0,0)))
+holoColor(A,BaseColor)
+holoScale(A,vec(0.2,0.2,0.3)*Scale)
+holoEntity(A):setSubMaterial(1,BaseMat1)
+holoEntity(A):setSubMaterial(4,Material5)
+A = 5
+holoCreate(A)
+holoModel(A,"models/meem/brake_disc/brake_disc.mdl")
+holoParent(A,E)
+holoPos(A,E:toWorld(vec(0,0,-1)*Scale))
+holoAng(A,E:toWorld(ang(0,0,0)))
+holoColor(A,vec(255))
+holoScale(A,vec(0.42)*Scale)
+holoMaterial(A,Material3)
+# models/jazzie/models/ba/drivers_valve_base_red.mdl
+#models/zexciv_train_stuff/details/usa/emd/emdfans.mdl
+# models/meem/brake_disc/brake_disc.mdl
+
+
+#levers
+
+
+#Air brake Lever
+A = 6
+holoCreate(A)
+holoModel(A,"models/zexciv_train_stuff/details/brakestand.mdl")
+holoParent(A,E)
+holoPos(A,E:toWorld(vec(0,0,3)*Scale))
+holoAng(A,E:toWorld(ang(0,0,0)))
+holoColor(A,TrainBrakeLeverColor)
+holoScale(A,vec(1.2)*Scale)
+holoBodygroup(A,1,1)
+holoEntity(A):setSubMaterial(1,TrainBrakeLeverMat1)
+holoEntity(A):setSubMaterial(2,TrainBrakeLeverMat2)
+holoEntity(A):setSubMaterial(4,TrainBrakeLeverMat3)
+holoEntity(A):setSubMaterial(5,TrainBrakeLeverMat4)
+
+
+#Loco brake Lever
+A = 7
+holoCreate(A)
+holoModel(A,"models/zexciv_train_stuff/details/brakestand.mdl")
+holoParent(A,E)
+holoPos(A,E:toWorld(vec(-6.3,16.25,13.5)*Scale))
+holoAng(A,E:toWorld(ang(0,0,0)))
+holoColor(A,LocoBrakeLeverColor)
+holoScale(A,vec(0.9)*Scale)
+holoBodygroup(A,1,1)
+holoEntity(A):setSubMaterial(1,LocoBrakeLeverMat1)
+holoEntity(A):setSubMaterial(2,LocoBrakeLeverMat2)
+holoEntity(A):setSubMaterial(4,LocoBrakeLeverMat3)
+holoEntity(A):setSubMaterial(5,LocoBrakeLeverMat4)
+
+
+
+
+
+}
+holoAng(6,E:toWorld(ang(0,ABNotch*30,0)))
+holoAng(7,E:toWorld(ang(0,(LBNotch*-30)+20,0)))
+
+
+
+
