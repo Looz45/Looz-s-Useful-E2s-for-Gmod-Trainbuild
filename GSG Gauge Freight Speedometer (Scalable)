@@ -1,0 +1,61 @@
+@name GSG Gauge Freight Speedometer (Scalable)
+@inputs MPH
+@outputs
+@persist E:entity Skin Scale:vector
+@trigger none
+
+@model models/sprops/cuboids/height06/size_1/cube_6x6x6.mdl
+
+if (first() | duped()) {
+    E = entity()
+
+    Skin = 2          # 2 or 3
+    Scale = vec(0.6)  # Change this to resize the whole gauge
+
+    function void needleValue(HoloIndex:number, Value:number) {
+        local Frac = -clamp(Value / 90, 0, 1)
+        local Angle = Frac * 240 + 120
+
+        holoAng(HoloIndex, E:angles():rotateAroundAxis(E:forward(), Angle))
+    }
+
+    # Hide the E2 chip
+    E:propDraw(0)
+
+    # Gauge face
+    holoCreate(
+        0,
+        E:pos(),
+        Scale,
+        E:angles(),
+        vec(255),
+        "models/gsgtrainprops/parts/cab/gauge_speedo.mdl"
+    )
+    holoSkin(0, Skin)
+    holoParent(0, E)
+
+    # Needle
+    holoCreate(
+        2,
+        E:pos(),
+        Scale*1.8,
+        E:angles(),
+        (Skin - 2) ? vec(72) : vec(255),
+        "models/gsgtrainprops/parts/cab/needle_brake_white.mdl"
+    )
+    holoParent(2, E)
+
+    needleValue(2, 0)
+}
+
+if (clk("update")) {
+    needleValue(2, MPH)
+    timer("update", 100)
+}
+else {
+    timer("update", 100)
+}
+#[if (clk("update")) {
+    print(MPH)
+    needleValue(2, MPH)
+}
