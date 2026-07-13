@@ -1,0 +1,188 @@
+@name LR  Controls V2.4
+@inputs ThrottleF ReverserF Brake TrainBrake
+@outputs
+@persist F RFBase RFLever ThrottleNotchF Scale LastThrottleF LastReverserF ReverserValueF
+@persist LastBrake LastTrainBrake
+@model 
+
+    entity():setAlpha(0)
+if(first() | dupefinished()){
+    LastBrake = -1
+LastTrainBrake = -1
+    Scale = 1
+
+    # --- FRONT THROTTLE LEVER ---
+    F = 1
+    holoCreate(F)
+    holoModel(F, "models/anytrains/props/shapes/throttle_lever_base.mdl")
+    holoScale(F, vec(Scale))
+    holoColor(F, vec(143,139,130))
+    holoPos(F, entity():toWorld(vec(0, 3, 0)))
+    holoAng(F, entity():toWorld(ang(0, 0, 90)))
+    holoParent(F, entity())
+    for (I = 1, 6) { holoEntity(F):setSubMaterial(1, "chrisautism/locotexs/acrylicprotoweathered") }
+
+    # --- FRONT REVERSER BASE ---
+    RFBase = 3
+    holoCreate(RFBase)
+    holoModel(RFBase, "models/floofy/trainparts/misc/ellcon_33000.mdl")
+    holoScale(RFBase, vec(0.7 * Scale))
+    holoColor(RFBase, vec(143,139,130))
+    holoPos(RFBase, entity():toWorld(vec(0, 10, 1-0.2)))
+    holoAng(RFBase, entity():toWorld(ang(0, 0, 0)))
+    holoParent(RFBase, entity())
+    holoEntity(RFBase):setSubMaterial(1, "chrisautism/locotexs/acrylicprotoweathered")
+    holoEntity(RFBase):setSubMaterial(5, "chrisautism/locotexs/acrylicprotoweathered")
+
+    # --- FRONT REVERSER LEVER ---
+    RFLever = 4
+    holoCreate(RFLever)
+    holoModel(RFLever, "models/ext/stand/levers/ge_throttle.mdl")
+    holoScale(RFLever, vec(0.7 * Scale))
+    holoColor(RFLever, vec(143,139,130))
+    holoPos(RFLever, entity():toWorld(vec(2, 10, 1-0.2)))
+    holoAng(RFLever, entity():toWorld(ang(90, 0, 0)))
+    holoParent(RFLever, entity())
+    holoEntity(RFLever):setSubMaterial(1, "models/proppertextures/enamel_black")
+    holoEntity(RFLever):setSubMaterial(2, "models/proppertextures/aluminum")
+#[
+    # --- BRAKE BASE ---
+    BB1 = 8
+    holoCreate(BB1)
+    holoModel(BB1, "models/cheeze/wires/speaker.mdl")
+    holoScale(BB1, vec(0.7 * Scale))
+    holoColor(BB1, vec(143,139,130))
+    holoPos(BB1, entity():toWorld(vec(0, -3, 1.5)))
+    holoAng(BB1, entity():toWorld(ang(0, 0, 180)))
+    holoParent(BB1, entity())
+    holoEntity(BB1):setSubMaterial(1, "chrisautism/locotexs/acrylicprotoweathered")
+    holoEntity(BB1):setSubMaterial(3, "chrisautism/locotexs/acrylicprotoweathered")
+    
+    # --- BRAKE BASE ---
+    BB1 = 9
+    holoCreate(BB1)
+    holoModel(BB1, "models/bull/gates/capacitor.mdl")
+    holoScale(BB1, vec(0.5 * Scale,0.5 * Scale,0.5 * Scale))
+    holoColor(BB1, vec(143,139,130))
+    holoPos(BB1, entity():toWorld(vec(0, -3, 1.5)))
+    holoAng(BB1, entity():toWorld(ang(0, 0, 0)))
+    holoParent(BB1, entity())
+    holoEntity(BB1):setSubMaterial(1, "models/proppertextures/enamel_black")  
+    holoEntity(BB1):setSubMaterial(2, "models/proppertextures/enamel_black")  
+    holoEntity(BB1):setSubMaterial(3, "models/proppertextures/enamel_black")  
+    holoEntity(BB1):setSubMaterial(4, "models/proppertextures/enamel_black")  
+    
+    # --- BRAKE lEVER ---
+    BB1 = 10
+    holoCreate(BB1)
+    holoModel(BB1, "models/monkcabdetailpack/alco/alco_rs3_locobrake.mdl")
+    holoScale(BB1, vec(0.7 * Scale))
+    holoColor(BB1, vec(143,139,130))
+    holoPos(BB1, entity():toWorld(vec(0, -3, 2)))
+    holoAng(BB1, entity():toWorld(ang(0, -90, 0)))
+    holoParent(BB1, entity())
+    holoEntity(BB1):setSubMaterial(2, "models/proppertextures/enamel_black")
+    holoEntity(BB1):setSubMaterial(1, "models/proppertextures/aluminum")
+
+    # --- TRAINBRAKE lEVER ---
+    BB1 = 11
+    holoCreate(BB1)
+    holoModel(BB1, "models/monkcabdetailpack/alco/alco_rs3_trainbrake.mdl")
+    holoScale(BB1, vec(0.7 * Scale))
+    holoColor(BB1, vec(143,139,130))
+    holoPos(BB1, entity():toWorld(vec(0, -3, 3.75)))
+    holoAng(BB1, entity():toWorld(ang(0, -80, 0)))
+    holoParent(BB1, entity())
+    holoEntity(BB1):setSubMaterial(1, "models/proppertextures/enamel_black")
+    holoEntity(BB1):setSubMaterial(2, "models/proppertextures/aluminum")
+]#
+    # Initialize memory
+    LastThrottleF = -1
+    ReverserValueF = 999
+}
+
+# --- FRONT THROTTLE ---
+NewThrottleNotchF = round(clamp((ThrottleF / 10) * 8, 0, 8))
+
+if(NewThrottleNotchF != ThrottleNotchF){
+    ThrottleNotchF = NewThrottleNotchF
+    LastThrottleF = ThrottleF
+
+    holoBodygroup(F, 1, ThrottleNotchF)
+
+    soundStop(1)
+    soundPlay(1, 1, "gsgtrainsounds/misc/cab/emd_composite_throttle_2.wav")
+    soundPitch(1, 100)
+}
+
+# --- FRONT REVERSER ---
+NewReverserValueF = 0
+
+if(ReverserF > 0.1){
+    NewReverserValueF = 20
+}elseif(ReverserF < -0.1){
+    NewReverserValueF = -20
+}else{
+    NewReverserValueF = 0
+}
+
+if(NewReverserValueF != ReverserValueF){
+    ReverserValueF = NewReverserValueF
+
+    soundStop(2)
+
+    if(ReverserValueF == 20){
+        soundPlay(2, 1, "gsgtrainsounds/misc/cab/reverser_neutral_3.wav")
+    }elseif(ReverserValueF == -20){
+        soundPlay(2, 1, "gsgtrainsounds/misc/cab/reverser_neutral.wav")
+    }else{
+        soundPlay(2, 1, "gsgtrainsounds/misc/cab/reverser_fr_b23-7.wav")
+    }
+
+    soundPitch(2, 100)
+    holoAng(RFLever, entity():toWorld(ang(90, ReverserValueF, 0)))
+}
+
+# --- BRAKE LEVER ---
+BrakeAngle = 0
+
+if(Brake != LastBrake){
+    LastBrake = Brake
+
+    if(Brake == 1){
+        soundPlay(3, 0, "gsgtrainsounds/misc/cab/sand_loop.wav")
+        soundPitch(3, 100)
+    }else{
+        soundStop(3)
+        soundPlay(3, 0, "gsgtrainsounds/misc/cab/sand_end.wav")
+        soundPitch(3, 100)
+    }
+}
+
+if(Brake == 1){
+    BrakeAngle = 60
+}
+
+holoAng(10, entity():toWorld(ang(0, -90 + BrakeAngle, 0)))
+
+# --- TRAIN BRAKE LEVER ---
+TrainBrakeAngle = 0
+
+if(TrainBrake != LastTrainBrake){
+    LastTrainBrake = TrainBrake
+
+    if(TrainBrake == 1){
+        soundPlay(4, 0, "gsgtrainsounds/misc/cab/sand_loop4.wav")
+        soundPitch(4, 100)
+    }else{
+        soundStop(4)
+        soundPlay(4, 0, "gsgtrainsounds/misc/cab/sand_end4.wav")
+        soundPitch(4, 100)
+    }
+}
+
+if(TrainBrake == 1){
+    TrainBrakeAngle = 40
+}
+
+holoAng(11, entity():toWorld(ang(0, -80 + TrainBrakeAngle, 0)))
