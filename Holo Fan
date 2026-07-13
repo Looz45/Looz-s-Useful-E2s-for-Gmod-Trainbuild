@@ -1,0 +1,47 @@
+@name Holo Fan
+@inputs On
+@persist E:entity V Speed Angle Scale:vector
+
+if(first()|duped()){
+    E = entity()
+    
+    Scale3=1
+    Scale = vec(1.2,1.2,Scale3)
+    Scale2 = vec(1.1,1.1,Scale3)
+    FanColor = vec(36)
+    EnclosureColor = vec(110)
+    OldFan = 0
+    FanType = 1 #1 for Dynamics, 0 for radiators
+    Speed = 30
+    
+    Angle = 0
+    holoCreate(0,E:pos(),Scale,E:angles(),EnclosureColor,"models/zexciv_train_stuff/details/usa/emd/emdfans.mdl")
+    holoCreate(1,E:pos(),Scale2,E:angles(),FanColor,"models/gsgtrainprops/parts/fans/fanblade.mdl")
+    holoEntity(0):setSubMaterial(2,"models/proppertextures/acrylic2_hw")
+    holoEntity(1):setSubMaterial(1,"models/proppertextures/acrylic2_hw")
+    holoEntity(0):setSubMaterial(4,"models/proppertextures/invisible")
+    holoEntity(1):setSubMaterial(2,"bobsters_trains/chrome")
+    holoEntity(0):setSubMaterial(1,"models/proppertextures/acrylic2_hw")
+    holoParent(0,E)
+    holoParent(1,E)
+    holoBodygroup(0,1,FanType)
+    holoBodygroup(0,2,OldFan)
+    holoBodygroup(1,1,FanType)
+
+}
+interval(20)
+if(On & V<Speed*2)
+{
+    V+=0.25
+}
+elseif(!On & V>0)
+{
+    V+=-0.25
+}
+
+if(V>0)
+{
+    Angle += V
+    if(Angle>360){Angle+=-360}
+    holoAng(1,E:angles():rotateAroundAxis(E:up(),-Angle))
+}
