@@ -1,4 +1,4 @@
-@name Core Diesel Control V2.5
+@name Core Diesel Control V2.6
 @inputs Active On_Signal Killswitch W S A D Space Sander TrainBrake IndepBrake HandBrake Throttle_OVR
 @outputs MPH KPH V Throttle Reverser Brake DynamicBrake EngineRPM TargetRPM EngineLoad EngineOn EngineLatched DelayedSignal HeatwaveEmit Particle:string ParticleOn StartupStage WheelSlip SlipAmount ShutdownAlarmActive ShutdownTimeRemaining Sanding OPS
 @persist [EngineName Diesel_Sound Notch1_Sound Notch2_Sound Notch3_Sound Notch4_Sound Notch5_Sound Notch6_Sound Notch7_Sound Notch8_Sound]:string
@@ -10,7 +10,7 @@
 @persist SoundPitchRPM SoundPitchThrottle IdlePitch FullPitch ThrottlePitchAdd
 @persist StartupStage1Time StartupTotalTime StartupTimer StartupActive StartupStage MessageSent
 @persist EngineOn EngineLatched PrevOnSignal PrevActive PrevKillswitch ChatStartPulse ChatStopPulse
-@persist PowerNotch TargetNotch PrevTargetNotch CurrentNotch SoundNotch PlayingNotch NextSoundChange
+@persist PowerNotch TargetNotch PrevTargetNotch CurrentNotch SoundNotch PlayingNotch NextSoundChange PowerSoundChannel
 @persist Throttle Reverser Brake Braking DynamicBrake DynamicBrakeRequest ChatDynamicBrake
 @persist DynamicBrakeEnabled DynBrakePower DynamicBrakeMinMPH DynamicBrakeFullMPH DynamicBrakeApplyRate DynamicBrakeReleaseRate
 @persist ClagEnabled MaxClagLevel SteadyClagFactor ClagBoostPerNotch ClagDecayRate ClagBoost SmokeLevel
@@ -20,15 +20,19 @@
 @persist RequireNeutralStart DebugMode PrevWheelSlip PrevDynamicBrakeActive PrevStartupStage
 @persist ShutdownAlarmEnabled ShutdownAlarmTime ShutdownAlarmTimer ShutdownAlarmActive ShutdownTimeRemaining ShutdownPending
 @persist PrevW PrevS PrevA PrevD PrevTB PrevIB PrevHB
+@persist PrevTrainBrakeApplied PrevIndepBrakeApplied PrevHandBrakeApplied
+@persist TrainBrakeToggleMode IndepBrakeToggleMode HandBrakeToggleMode
+@persist TrainBrakeLatched IndepBrakeLatched HandBrakeLatched
 @persist ChatTrainBrake ChatIndepBrake ChatHandBrake
 @persist Spd [E O Weld]:entity
 @persist EngineSoundLevelEnabled IdleSoundLevel FullSoundLevel CurrentEngineSoundLevel SoundLevelRiseRate SoundLevelFallRate
+@persist IdleSoundVolume FullSoundVolume CurrentEngineSoundVolume
 @trigger all
 @model models/beer/wiremod/watersensor.mdl
 
 #[
 ===============================================================================
-CORE DIESEL CONTROL V2.5
+CORE DIESEL CONTROL V2.6
 Simple realistic diesel-electric controller by Looz#45.
 
 CONTROL LAYOUT
@@ -84,6 +88,19 @@ SHUTDOWN ALARM
     then plays. Active = 0 remains an immediate full isolation.
     
     
+
+
+V 2.6 Changelog
+    - Fixed notch 1-8 sound selection by replacing the switch block with
+      explicit per-notch playback logic.
+    - Added configurable hold/toggle modes for train, independent and
+      handbrake inputs.
+    - Separated raw brake-input edge tracking from applied-brake sound state.
+    - Fixed all engine loops repeatedly chopping/restarting.
+    - soundLevel() is no longer changed every interval while a sound is
+      playing. It is applied only when a new idle/notch recording starts.
+    - Engine loudness under load now uses smooth soundVolume() adjustment.
+
 V 2.5 Changelog
     - Added Sanders to aid in wheel slip
     - Added Sander & Wheel slip sound configs
@@ -178,10 +195,10 @@ if(first() | duped()){
     ShutdownSound = "wam98_sounds/trains/engines/ee12csvt/shutdown.wav"
 
     # Optional warning sounded before a normal engine shutdown.
-    ShutdownAlarmSound = "ambient/alarms/klaxon1.wav"
+    ShutdownAlarmSound = "hazardous_sound_pack/hazardous-sounds/alarm1.wav"
 
     # Sound channels:
-    # 0 idle, 1 powered notch, 2 startup
+    # 0 idle, 1/11 alternating powered-notch channels, 2 startup
     # 3 independent brake, 4 train brake, 5 handbrake
     # 6 shutdown, 7 initialisation, 8 shutdown alarm
     # 9 wheel slip, 10 sanding
@@ -199,9 +216,14 @@ if(first() | duped()){
     IdleSoundLevel = 100
     FullSoundLevel = 165
 
-    # How quickly the sound level responds to load changes.
+    # How quickly the load loudness responds.
     SoundLevelRiseRate = 35
     SoundLevelFallRate = 25
+
+    # Volume is safe to adjust while a loop is already playing.
+    # Keep these between 0 and 1.
+    IdleSoundVolume = 0.62
+    FullSoundVolume = 1.00
 
 
     # -------------------------------------------------------------------------
@@ -301,10 +323,21 @@ if(first() | duped()){
     SanderSlipReduction = 0.70
 
     # -------------------------------------------------------------------------
+    # BRAKE INPUT MODES
+    # -------------------------------------------------------------------------
+
+    # 0 = hold input: brake remains applied only while the input is held.
+    # 1 = toggle input: each rising edge alternates applied/released.
+    TrainBrakeToggleMode = 0
+    IndepBrakeToggleMode = 0
+    HandBrakeToggleMode = 1
+
+    # -------------------------------------------------------------------------
     # DEFAULT STATES
     # -------------------------------------------------------------------------
     
     CurrentEngineSoundLevel = IdleSoundLevel
+    CurrentEngineSoundVolume = IdleSoundVolume
     EngineOn = 0
     EngineLatched = 0
     EngineRPM = 0
@@ -332,6 +365,7 @@ if(first() | duped()){
     SoundNotch = 0
     PlayingNotch = 0
     NextSoundChange = 0
+    PowerSoundChannel = 1
 
     Throttle = 0
     Brake = 0
@@ -350,6 +384,14 @@ if(first() | duped()){
     ChatTrainBrake = 0
     ChatIndepBrake = 0
     ChatHandBrake = 0
+
+    TrainBrakeLatched = 0
+    IndepBrakeLatched = 0
+    HandBrakeLatched = 0
+
+    PrevTrainBrakeApplied = 0
+    PrevIndepBrakeApplied = 0
+    PrevHandBrakeApplied = 0
 
     ChatStartPulse = 0
     ChatStopPulse = 0
@@ -427,6 +469,7 @@ if(!Active){
         soundStop(8)
         soundStop(9)
         soundStop(10)
+        soundStop(11)
     }
 
     EngineLatched = 0
@@ -526,6 +569,7 @@ else{
     if(PerformShutdown){
         soundStop(0)
         soundStop(1)
+        soundStop(11)
         soundStop(2)
         soundStop(8)
         soundStop(6)
@@ -609,6 +653,7 @@ else{
 
             soundStop(0)
             soundStop(1)
+            soundStop(11)
             soundStop(2)
             soundStop(6)
             soundStop(8)
@@ -805,14 +850,46 @@ if(ClagBoost > 0){
 PrevTargetNotch = TargetNotch
 
 # =============================================================================
-# SIMPLE BRAKES
+# SIMPLE BRAKES - HOLD OR TOGGLE INPUT MODES
 # =============================================================================
 
 if(Active){
-    IndepBrakeFinal = IndepBrake
-    TrainBrakeFinal = TrainBrake
-    HandBrakeFinal = HandBrake
 
+    # Rising-edge toggles. Hold-mode inputs bypass the latch below.
+    if(TrainBrakeToggleMode & TrainBrake & !PrevTB){
+        TrainBrakeLatched = 1 - TrainBrakeLatched
+    }
+
+    if(IndepBrakeToggleMode & IndepBrake & !PrevIB){
+        IndepBrakeLatched = 1 - IndepBrakeLatched
+    }
+
+    if(HandBrakeToggleMode & HandBrake & !PrevHB){
+        HandBrakeLatched = 1 - HandBrakeLatched
+    }
+
+    if(TrainBrakeToggleMode){
+        TrainBrakeFinal = TrainBrakeLatched
+    }else{
+        TrainBrakeFinal = clamp(TrainBrake, 0, 1)
+        TrainBrakeLatched = 0
+    }
+
+    if(IndepBrakeToggleMode){
+        IndepBrakeFinal = IndepBrakeLatched
+    }else{
+        IndepBrakeFinal = clamp(IndepBrake, 0, 1)
+        IndepBrakeLatched = 0
+    }
+
+    if(HandBrakeToggleMode){
+        HandBrakeFinal = HandBrakeLatched
+    }else{
+        HandBrakeFinal = clamp(HandBrake, 0, 1)
+        HandBrakeLatched = 0
+    }
+
+    # Chat brake states remain usable alongside either physical input mode.
     if(ChatIndepBrake){ IndepBrakeFinal = 1 }
     if(ChatTrainBrake){ TrainBrakeFinal = 1 }
     if(ChatHandBrake){ HandBrakeFinal = 1 }
@@ -820,38 +897,46 @@ if(Active){
     Brake = clamp(max(IndepBrakeFinal, TrainBrakeFinal, HandBrakeFinal), 0, 1)
     Braking = Brake
 
-    if(IndepBrakeFinal != PrevIB){
+    # Sound state is tracked separately from raw button edges.
+    if(IndepBrakeFinal != PrevIndepBrakeApplied){
+        soundStop(3)
+
         if(IndepBrakeFinal){
             print("Independent Brake Applied")
             soundPlay(3, 0, IndepBrake_Sound)
         }else{
             print("Independent Brake Released")
-            soundStop(3)
         }
-        PrevIB = IndepBrakeFinal
+
+        PrevIndepBrakeApplied = IndepBrakeFinal
     }
 
-    if(TrainBrakeFinal != PrevTB){
+    if(TrainBrakeFinal != PrevTrainBrakeApplied){
+        soundStop(4)
+
         if(TrainBrakeFinal){
             print("Train Brake Applied")
             soundPlay(4, 0, TrainBrake_Sound)
         }else{
             print("Train Brake Released")
-            soundStop(4)
         }
-        PrevTB = TrainBrakeFinal
+
+        PrevTrainBrakeApplied = TrainBrakeFinal
     }
 
-    if(HandBrakeFinal != PrevHB){
+    if(HandBrakeFinal != PrevHandBrakeApplied){
+        soundStop(5)
+
         if(HandBrakeFinal){
             print("Handbrake Applied")
             soundPlay(5, 0, HandBrake_Sound)
         }else{
             print("Handbrake Released")
-            soundStop(5)
         }
-        PrevHB = HandBrakeFinal
+
+        PrevHandBrakeApplied = HandBrakeFinal
     }
+
 }else{
     IndepBrakeFinal = 0
     TrainBrakeFinal = 0
@@ -860,13 +945,17 @@ if(Active){
     Brake = 0
     Braking = 0
 
+    TrainBrakeLatched = 0
+    IndepBrakeLatched = 0
+    HandBrakeLatched = 0
+
     soundStop(3)
     soundStop(4)
     soundStop(5)
 
-    PrevIB = 0
-    PrevTB = 0
-    PrevHB = 0
+    PrevTrainBrakeApplied = 0
+    PrevIndepBrakeApplied = 0
+    PrevHandBrakeApplied = 0
 }
 
 # =============================================================================
@@ -892,14 +981,16 @@ if(Active & EngineOn & EngineLatched){
 
     # ----------------- ENGINE SOUND LEVEL / LOUDNESS -----------------
 
-    # soundLevel changes how strongly the engine sound carries and attenuates.
-    # The level follows actual smoothed EngineLoad rather than instantly
-    # jumping to the selected target notch.
+    # IMPORTANT:
+    # soundLevel() must not be changed continuously on an already-playing E2
+    # sound. Doing so can repeatedly recreate/chop the sound patch.
+    #
+    # CurrentEngineSoundLevel is still calculated for the next sound start,
+    # while live load loudness is handled with soundVolume().
+
     if(EngineSoundLevelEnabled){
         TargetEngineSoundLevel = IdleSoundLevel
         TargetEngineSoundLevel += EngineLoad * (FullSoundLevel - IdleSoundLevel)
-
-        # Wheel slip adds a small temporary engine-noise flare.
         TargetEngineSoundLevel += SlipAmount * 8
 
         TargetEngineSoundLevel = clamp(
@@ -917,55 +1008,97 @@ if(Active & EngineOn & EngineLatched){
             CurrentEngineSoundLevel = max(CurrentEngineSoundLevel, TargetEngineSoundLevel)
         }
 
-        CurrentEngineSoundLevel = clamp(
-            CurrentEngineSoundLevel,
-            IdleSoundLevel,
-            FullSoundLevel + 8
-        )
+        TargetEngineSoundVolume = IdleSoundVolume
+        TargetEngineSoundVolume += EngineLoad * (FullSoundVolume - IdleSoundVolume)
+        TargetEngineSoundVolume += SlipAmount * 0.05
+        TargetEngineSoundVolume = clamp(TargetEngineSoundVolume, 0, 1)
+
+        VolumeRiseRate = 0.85
+        VolumeFallRate = 0.60
+
+        if(CurrentEngineSoundVolume < TargetEngineSoundVolume){
+            CurrentEngineSoundVolume += VolumeRiseRate * 0.02
+            CurrentEngineSoundVolume = min(
+                CurrentEngineSoundVolume,
+                TargetEngineSoundVolume
+            )
+        }
+        elseif(CurrentEngineSoundVolume > TargetEngineSoundVolume){
+            CurrentEngineSoundVolume -= VolumeFallRate * 0.02
+            CurrentEngineSoundVolume = max(
+                CurrentEngineSoundVolume,
+                TargetEngineSoundVolume
+            )
+        }
     }else{
         CurrentEngineSoundLevel = IdleSoundLevel
+        CurrentEngineSoundVolume = 1
     }
 
-    # Apply continuously so the active loop becomes stronger or quieter
-    # without needing to restart the sound.
-    soundLevel(0, CurrentEngineSoundLevel)
-    soundLevel(1, CurrentEngineSoundLevel)
+    # Volume can be adjusted live without restarting the sound.
+    soundVolume(0, CurrentEngineSoundVolume)
+    soundVolume(1, CurrentEngineSoundVolume)
+    soundVolume(11, CurrentEngineSoundVolume)
 
     if(SoundNotch != CurrentNotch){
+        # Stop every engine loop before selecting the next recording.
         soundStop(0)
         soundStop(1)
+        soundStop(11)
 
-        switch(SoundNotch){
-            case 0,
-                soundPlay(0, 0, Diesel_Sound)
-                soundLevel(0, CurrentEngineSoundLevel)
-            case 1,
-                soundPlay(1, 0, Notch1_Sound)
-                soundLevel(1, CurrentEngineSoundLevel)
-            case 2,
-                soundPlay(1, 0, Notch2_Sound)
-                soundLevel(1, CurrentEngineSoundLevel)
-            case 3,
-                soundPlay(1, 0, Notch3_Sound)
-                soundLevel(1, CurrentEngineSoundLevel)
-            case 4,
-                soundPlay(1, 0, Notch4_Sound)
-                soundLevel(1, CurrentEngineSoundLevel)
-            case 5,
-                soundPlay(1, 0, Notch5_Sound)
-                soundLevel(1, CurrentEngineSoundLevel)
-            case 6,
-                soundPlay(1, 0, Notch6_Sound)
-                soundLevel(1, CurrentEngineSoundLevel)
-            case 7,
-                soundPlay(1, 0, Notch7_Sound)
-                soundLevel(1, CurrentEngineSoundLevel)
-            case 8,
-                soundPlay(1, 0, Notch8_Sound)
-                soundLevel(1, CurrentEngineSoundLevel)
+        if(SoundNotch == 0){
+            soundPlay(0, 0, Diesel_Sound)
+            soundLevel(0, CurrentEngineSoundLevel)
+            soundVolume(0, CurrentEngineSoundVolume)
+        }else{
+            # Alternate between two powered-sound channels. Some sound loops do
+            # not reliably replace themselves when the same channel is stopped
+            # and restarted in one tick, especially while descending notches.
+            if(PowerSoundChannel == 1){
+                PowerSoundChannel = 11
+            }else{
+                PowerSoundChannel = 1
+            }
+
+            if(SoundNotch == 1){
+                soundPlay(PowerSoundChannel, 0, Notch1_Sound)
+            }
+            elseif(SoundNotch == 2){
+                soundPlay(PowerSoundChannel, 0, Notch2_Sound)
+            }
+            elseif(SoundNotch == 3){
+                soundPlay(PowerSoundChannel, 0, Notch3_Sound)
+            }
+            elseif(SoundNotch == 4){
+                soundPlay(PowerSoundChannel, 0, Notch4_Sound)
+            }
+            elseif(SoundNotch == 5){
+                soundPlay(PowerSoundChannel, 0, Notch5_Sound)
+            }
+            elseif(SoundNotch == 6){
+                soundPlay(PowerSoundChannel, 0, Notch6_Sound)
+            }
+            elseif(SoundNotch == 7){
+                soundPlay(PowerSoundChannel, 0, Notch7_Sound)
+            }
+            elseif(SoundNotch == 8){
+                soundPlay(PowerSoundChannel, 0, Notch8_Sound)
+            }
+
+            soundLevel(PowerSoundChannel, CurrentEngineSoundLevel)
+            soundVolume(PowerSoundChannel, CurrentEngineSoundVolume)
         }
 
         CurrentNotch = SoundNotch
+
+        if(DebugMode){
+            print(
+                "CDC Debug: Playing engine sound notch "
+                + SoundNotch:toString()
+                + " on channel "
+                + PowerSoundChannel:toString()
+            )
+        }
     }
 
     # Real configurable governor RPM.
@@ -1015,17 +1148,17 @@ if(Active & EngineOn & EngineLatched){
         if(SoundNotch == 0){
             soundPitch(0, clamp(Pitch, 1, 255))
         }else{
-            soundPitch(1, clamp(Pitch, 1, 255))
+            soundPitch(PowerSoundChannel, clamp(Pitch, 1, 255))
         }
     }
 
 }else{
     soundStop(0)
     soundStop(1)
+    soundStop(11)
 
     CurrentEngineSoundLevel = IdleSoundLevel
-    soundLevel(0, IdleSoundLevel)
-    soundLevel(1, IdleSoundLevel)
+    CurrentEngineSoundVolume = IdleSoundVolume
 
     CurrentNotch = -1
     SoundNotch = 0
@@ -1301,7 +1434,8 @@ if(chatClk(O)){
                 + "/" + round(TargetRPM):toString()
                 + " (hunt " + round(RPMHuntOffset, 1):toString() + ")"
                 + " | Load " + round(EngineLoad * 100):toString() + "%"
-                + " | Sound level " + round(CurrentEngineSoundLevel):toString())
+                + " | Sound level " + round(CurrentEngineSoundLevel):toString()
+                + " | Volume " + round(CurrentEngineSoundVolume * 100):toString() + "%")
             print("Clag " + SmokeLevel:toString()
                 + "/" + MaxClagLevel:toString()
                 + " | Slip " + round(SlipAmount * 100):toString() + "%"
@@ -1360,6 +1494,10 @@ if(chatClk(O)){
             ChatTrainBrake = 0
             ChatIndepBrake = 0
             ChatHandBrake = 0
+
+            TrainBrakeLatched = 0
+            IndepBrakeLatched = 0
+            HandBrakeLatched = 0
 
             print("CDC: Driver controls reset - reverser neutral")
         }
@@ -1577,5 +1715,8 @@ PrevW = W
 PrevS = S
 PrevA = A
 PrevD = D
+PrevTB = TrainBrake
+PrevIB = IndepBrake
+PrevHB = HandBrake
 
 OPS = ops()
