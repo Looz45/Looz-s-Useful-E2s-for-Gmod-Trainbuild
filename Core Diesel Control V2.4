@@ -1,8 +1,8 @@
-@name Core Diesel Control V2.4
-@inputs Active On_Signal Killswitch W S A D Space TrainBrake IndepBrake HandBrake Throttle_OVR
-@outputs MPH KPH V Throttle Reverser Brake DynamicBrake EngineRPM TargetRPM EngineLoad EngineOn EngineLatched DelayedSignal HeatwaveEmit Particle:string ParticleOn StartupStage WheelSlip SlipAmount ShutdownAlarmActive ShutdownTimeRemaining OPS
+@name Core Diesel Control V2.5
+@inputs Active On_Signal Killswitch W S A D Space Sander TrainBrake IndepBrake HandBrake Throttle_OVR
+@outputs MPH KPH V Throttle Reverser Brake DynamicBrake EngineRPM TargetRPM EngineLoad EngineOn EngineLatched DelayedSignal HeatwaveEmit Particle:string ParticleOn StartupStage WheelSlip SlipAmount ShutdownAlarmActive ShutdownTimeRemaining Sanding OPS
 @persist [EngineName Diesel_Sound Notch1_Sound Notch2_Sound Notch3_Sound Notch4_Sound Notch5_Sound Notch6_Sound Notch7_Sound Notch8_Sound]:string
-@persist [TrainBrake_Sound IndepBrake_Sound HandBrake_Sound]:string
+@persist [TrainBrake_Sound IndepBrake_Sound HandBrake_Sound WheelSlip_Sound Sander_Sound]:string
 @persist [InitSound StartSound ShutdownSound ShutdownAlarmSound Stage1Particle Stage2Particle IdleParticle]:string
 @persist MaxSpeedMPH MaxSpeed Mul BrakeScale HandBrakeScale
 @persist IdleRPM FullRPM EngineRPM TargetRPM RPMRiseRate RPMFallRate StartupRPMRiseRate EngineLoad
@@ -16,17 +16,19 @@
 @persist ClagEnabled MaxClagLevel SteadyClagFactor ClagBoostPerNotch ClagDecayRate ClagBoost SmokeLevel
 @persist WheelSlipEnabled Adhesion WheelSlipSpeedMPH WheelSlipThreshold WheelSlipForceMul WheelSlipRiseRate WheelSlipRecoverRate SlipAmount WheelSlip
 @persist WheelSlipRPMBoost WheelSlipClagBoost
+@persist SanderEnabled SanderRecoverRate SanderSlipReduction Sanding PrevSanding
 @persist RequireNeutralStart DebugMode PrevWheelSlip PrevDynamicBrakeActive PrevStartupStage
 @persist ShutdownAlarmEnabled ShutdownAlarmTime ShutdownAlarmTimer ShutdownAlarmActive ShutdownTimeRemaining ShutdownPending
 @persist PrevW PrevS PrevA PrevD PrevTB PrevIB PrevHB
 @persist ChatTrainBrake ChatIndepBrake ChatHandBrake
 @persist Spd [E O Weld]:entity
+@persist EngineSoundLevelEnabled IdleSoundLevel FullSoundLevel CurrentEngineSoundLevel SoundLevelRiseRate SoundLevelFallRate
 @trigger all
 @model models/beer/wiremod/watersensor.mdl
 
 #[
 ===============================================================================
-CORE DIESEL CONTROL V2.4
+CORE DIESEL CONTROL V2.5
 Simple realistic diesel-electric controller by Looz#45.
 
 CONTROL LAYOUT
@@ -39,6 +41,8 @@ CONTROL LAYOUT
     Space        Dynamic brake request. It immediately cancels traction and
                  returns the power controller to idle. Hold Space for full
                  dynamic braking, or use the chat command for a graduated value.
+    Sander       Hold to apply sand. Plays the sanding sound and gradually
+                 reduces an active wheel slip until traction is recovered.
 
 STARTING
     The engine can only be started with the reverser in neutral when
@@ -78,6 +82,13 @@ SHUTDOWN ALARM
     configured alarm for ShutdownAlarmTime seconds. Traction is removed and
     the engine returns to idle during the warning. The normal shutdown sound
     then plays. Active = 0 remains an immediate full isolation.
+    
+    
+V 2.5 Changelog
+    - Added Sanders to aid in wheel slip
+    - Added Sander & Wheel slip sound configs
+    - Added noise level config   
+    
 ===============================================================================
 ]#
 
@@ -103,11 +114,11 @@ if(first() | duped()){
     MaxSpeed = MaxSpeedMPH * 17.6
 
     # Main traction force multiplier.
-    Mul = 800
+    Mul = 300
 
     # Existing simple brake-force values.
-    BrakeScale = 30
-    HandBrakeScale = 16
+    BrakeScale = 10
+    HandBrakeScale = 12
 
     # -------------------------------------------------------------------------
     # ENGINE RPM / GOVERNOR
@@ -158,24 +169,47 @@ if(first() | duped()){
     IndepBrake_Sound = "gsgtrainsounds/wheels/brake_composite_7.wav"
     HandBrake_Sound = "gsgtrainsounds/misc/airbrake3.wav"
 
+    # Wheel-slip alarm/mechanical slip loop and sanding loop.
+    WheelSlip_Sound = "gsgtrainsounds/wheels/wheelslip_loop.wav"
+    Sander_Sound = "usa_locomotive_sounds_3/steam/sander/sander1.wav"
+
     InitSound = "chrispsssssssspack/r/hurrah.wav"
     StartSound = "wam98_sounds/trains/engines/ee12csvt_v2/startup.wav"
     ShutdownSound = "wam98_sounds/trains/engines/ee12csvt/shutdown.wav"
 
     # Optional warning sounded before a normal engine shutdown.
-    ShutdownAlarmSound = "hazardous_sound_pack/hazardous-sounds/alarm1.wav"
+    ShutdownAlarmSound = "ambient/alarms/klaxon1.wav"
 
     # Sound channels:
     # 0 idle, 1 powered notch, 2 startup
     # 3 independent brake, 4 train brake, 5 handbrake
     # 6 shutdown, 7 initialisation, 8 shutdown alarm
+    # 9 wheel slip, 10 sanding
+    
+    
+    # -------------------------------------------------------------------------
+    # ENGINE SOUND LEVEL / LOUDNESS
+    # -------------------------------------------------------------------------
+
+    # Gradually increases the engine sound level as load rises.
+    EngineSoundLevelEnabled = 1
+
+    # Garry's Mod soundLevel values.
+    # Higher values carry farther and sound more powerful.
+    IdleSoundLevel = 100
+    FullSoundLevel = 165
+
+    # How quickly the sound level responds to load changes.
+    SoundLevelRiseRate = 35
+    SoundLevelFallRate = 25
+
 
     # -------------------------------------------------------------------------
     # STARTUP
     # -------------------------------------------------------------------------
 
     StartupStage1Time = 4
-    StartupTotalTime = 7.5
+    StartupTotalTime = 9
 
     Stage1Particle = "clag_4stroke_2"
     Stage2Particle = "clag_4stroke_1"
@@ -254,9 +288,23 @@ if(first() | duped()){
     WheelSlipClagBoost = 0.35
 
     # -------------------------------------------------------------------------
-    # DEFAULT STATES
+    # SANDER
     # -------------------------------------------------------------------------
 
+    SanderEnabled = 1
+
+    # Extra slip removed per second while the sander is held.
+    SanderRecoverRate = 0.85
+
+    # Fraction by which sanding reduces the live slip target.
+    # 0.70 means the target slip is reduced by up to 70% while sanding.
+    SanderSlipReduction = 0.70
+
+    # -------------------------------------------------------------------------
+    # DEFAULT STATES
+    # -------------------------------------------------------------------------
+    
+    CurrentEngineSoundLevel = IdleSoundLevel
     EngineOn = 0
     EngineLatched = 0
     EngineRPM = 0
@@ -296,6 +344,8 @@ if(first() | duped()){
 
     WheelSlip = 0
     SlipAmount = 0
+    Sanding = 0
+    PrevSanding = 0
 
     ChatTrainBrake = 0
     ChatIndepBrake = 0
@@ -375,6 +425,8 @@ if(!Active){
         soundStop(6)
         soundStop(7)
         soundStop(8)
+        soundStop(9)
+        soundStop(10)
     }
 
     EngineLatched = 0
@@ -410,10 +462,13 @@ if(!Active){
     EngineRPM = 0
     TargetRPM = 0
     EngineLoad = 0
+    CurrentEngineSoundLevel = IdleSoundLevel
 
     ClagBoost = 0
     WheelSlip = 0
     SlipAmount = 0
+    Sanding = 0
+    PrevSanding = 0
 }
 else{
 
@@ -505,10 +560,15 @@ else{
         DynamicBrake = 0
         DynamicBrakeRequest = 0
         ChatDynamicBrake = 0
+        CurrentEngineSoundLevel = IdleSoundLevel
 
         ClagBoost = 0
         WheelSlip = 0
         SlipAmount = 0
+        Sanding = 0
+        PrevSanding = 0
+        soundStop(9)
+        soundStop(10)
     }
 
     # ----------------- MOMENTARY START REQUEST -----------------
@@ -830,6 +890,47 @@ if(Active & EngineOn & EngineLatched){
     PlayingNotch = clamp(PlayingNotch, 0, 8)
     SoundNotch = PlayingNotch
 
+    # ----------------- ENGINE SOUND LEVEL / LOUDNESS -----------------
+
+    # soundLevel changes how strongly the engine sound carries and attenuates.
+    # The level follows actual smoothed EngineLoad rather than instantly
+    # jumping to the selected target notch.
+    if(EngineSoundLevelEnabled){
+        TargetEngineSoundLevel = IdleSoundLevel
+        TargetEngineSoundLevel += EngineLoad * (FullSoundLevel - IdleSoundLevel)
+
+        # Wheel slip adds a small temporary engine-noise flare.
+        TargetEngineSoundLevel += SlipAmount * 8
+
+        TargetEngineSoundLevel = clamp(
+            TargetEngineSoundLevel,
+            IdleSoundLevel,
+            FullSoundLevel + 8
+        )
+
+        if(CurrentEngineSoundLevel < TargetEngineSoundLevel){
+            CurrentEngineSoundLevel += SoundLevelRiseRate * 0.02
+            CurrentEngineSoundLevel = min(CurrentEngineSoundLevel, TargetEngineSoundLevel)
+        }
+        elseif(CurrentEngineSoundLevel > TargetEngineSoundLevel){
+            CurrentEngineSoundLevel -= SoundLevelFallRate * 0.02
+            CurrentEngineSoundLevel = max(CurrentEngineSoundLevel, TargetEngineSoundLevel)
+        }
+
+        CurrentEngineSoundLevel = clamp(
+            CurrentEngineSoundLevel,
+            IdleSoundLevel,
+            FullSoundLevel + 8
+        )
+    }else{
+        CurrentEngineSoundLevel = IdleSoundLevel
+    }
+
+    # Apply continuously so the active loop becomes stronger or quieter
+    # without needing to restart the sound.
+    soundLevel(0, CurrentEngineSoundLevel)
+    soundLevel(1, CurrentEngineSoundLevel)
+
     if(SoundNotch != CurrentNotch){
         soundStop(0)
         soundStop(1)
@@ -837,22 +938,31 @@ if(Active & EngineOn & EngineLatched){
         switch(SoundNotch){
             case 0,
                 soundPlay(0, 0, Diesel_Sound)
+                soundLevel(0, CurrentEngineSoundLevel)
             case 1,
                 soundPlay(1, 0, Notch1_Sound)
+                soundLevel(1, CurrentEngineSoundLevel)
             case 2,
                 soundPlay(1, 0, Notch2_Sound)
+                soundLevel(1, CurrentEngineSoundLevel)
             case 3,
                 soundPlay(1, 0, Notch3_Sound)
+                soundLevel(1, CurrentEngineSoundLevel)
             case 4,
                 soundPlay(1, 0, Notch4_Sound)
+                soundLevel(1, CurrentEngineSoundLevel)
             case 5,
                 soundPlay(1, 0, Notch5_Sound)
+                soundLevel(1, CurrentEngineSoundLevel)
             case 6,
                 soundPlay(1, 0, Notch6_Sound)
+                soundLevel(1, CurrentEngineSoundLevel)
             case 7,
                 soundPlay(1, 0, Notch7_Sound)
+                soundLevel(1, CurrentEngineSoundLevel)
             case 8,
                 soundPlay(1, 0, Notch8_Sound)
+                soundLevel(1, CurrentEngineSoundLevel)
         }
 
         CurrentNotch = SoundNotch
@@ -913,6 +1023,10 @@ if(Active & EngineOn & EngineLatched){
     soundStop(0)
     soundStop(1)
 
+    CurrentEngineSoundLevel = IdleSoundLevel
+    soundLevel(0, IdleSoundLevel)
+    soundLevel(1, IdleSoundLevel)
+
     CurrentNotch = -1
     SoundNotch = 0
     PlayingNotch = 0
@@ -953,20 +1067,57 @@ if(Active & EngineOn & EngineLatched & !ShutdownPending & WheelSlipEnabled
         SlipTarget = 0
     }
 
+    # Sanding does not restore traction instantly. While held, it lowers the
+    # live slip target and adds a separate gradual recovery rate.
+    Sanding = SanderEnabled & Sander
+
+    if(Sanding){
+        SlipTarget *= 1 - clamp(SanderSlipReduction, 0, 1)
+    }
+
     if(SlipAmount < SlipTarget){
         SlipAmount += WheelSlipRiseRate * 0.02
     }
     elseif(SlipAmount > SlipTarget){
-        SlipAmount -= WheelSlipRecoverRate * 0.02
+        RecoverNow = WheelSlipRecoverRate
+
+        if(Sanding){
+            RecoverNow += SanderRecoverRate
+        }
+
+        SlipAmount -= RecoverNow * 0.02
     }
 
     SlipAmount = clamp(SlipAmount, 0, 1)
 }else{
-    SlipAmount -= WheelSlipRecoverRate * 0.02
+    Sanding = Active & EngineOn & EngineLatched & SanderEnabled & Sander
+
+    RecoverNow = WheelSlipRecoverRate
+    if(Sanding){ RecoverNow += SanderRecoverRate }
+
+    SlipAmount -= RecoverNow * 0.02
     SlipAmount = max(SlipAmount, 0)
 }
 
 WheelSlip = SlipAmount > 0.05
+
+# Wheel-slip sound runs only while measurable slipping is occurring.
+if(WheelSlip & Active & EngineOn){
+    if(!soundPlaying(9)){
+        soundPlay(9, 0, WheelSlip_Sound)
+    }
+}else{
+    soundStop(9)
+}
+
+# Sander sound follows the held input and is stopped by isolation/shutdown.
+if(Sanding & Active & EngineOn){
+    if(!soundPlaying(10)){
+        soundPlay(10, 0, Sander_Sound)
+    }
+}else{
+    soundStop(10)
+}
 
 # =============================================================================
 # DYNAMIC BRAKE APPLICATION
@@ -1093,6 +1244,14 @@ if(DebugMode){
         }
     }
 
+    if(Sanding != PrevSanding){
+        if(Sanding){
+            print("CDC Debug: Sander applied")
+        }else{
+            print("CDC Debug: Sander released")
+        }
+    }
+
     if(DynamicBrakeActive != PrevDynamicBrakeActive){
         if(DynamicBrakeActive){
             print("CDC Debug: Dynamic brake active")
@@ -1107,6 +1266,7 @@ if(DebugMode){
 }
 
 PrevWheelSlip = WheelSlip
+PrevSanding = Sanding
 PrevDynamicBrakeActive = DynamicBrakeActive
 PrevStartupStage = StartupStage
 
@@ -1140,11 +1300,13 @@ if(chatClk(O)){
                 + " | RPM " + round(EngineRPM):toString()
                 + "/" + round(TargetRPM):toString()
                 + " (hunt " + round(RPMHuntOffset, 1):toString() + ")"
-                + " | Load " + round(EngineLoad * 100):toString() + "%")
+                + " | Load " + round(EngineLoad * 100):toString() + "%"
+                + " | Sound level " + round(CurrentEngineSoundLevel):toString())
             print("Clag " + SmokeLevel:toString()
                 + "/" + MaxClagLevel:toString()
                 + " | Slip " + round(SlipAmount * 100):toString() + "%"
-                + " | Dynamic " + round(DynamicBrake * 100):toString() + "%")
+                + " | Dynamic " + round(DynamicBrake * 100):toString() + "%"
+                + " | Sander " + Sanding:toString())
             print("Shutdown alarm " + ShutdownAlarmActive:toString()
                 + " | Remaining " + round(ShutdownTimeRemaining, 1):toString() + " sec")
         }
@@ -1191,6 +1353,9 @@ if(chatClk(O)){
             ClagBoost = 0
             SlipAmount = 0
             WheelSlip = 0
+            Sanding = 0
+            soundStop(9)
+            soundStop(10)
 
             ChatTrainBrake = 0
             ChatIndepBrake = 0
